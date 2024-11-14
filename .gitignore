@@ -6,7 +6,9 @@ __pycache__/
 # LaTeX:
 *.log
 *.aux
-*..synctex.gz
+*.gz
+
+*..padvish.*
 
 # C extensions
 *.so
