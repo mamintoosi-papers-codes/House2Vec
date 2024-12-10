@@ -6,7 +6,7 @@
     xlabel={Embedding Size},  
     ylabel={R2 },  
     xtick={2,3,4,5,10,15,20},  
-    ymin=0.751138899413611, ymax=0.7730529305366673,  
+    ymin=0.75, ymax=0.775,  
     grid=both,  
     ticklabel style={/pgf/number format/fixed},  
     legend style={at={(0.5,-0.2)}, anchor=north, legend columns=1},  
@@ -28,7 +28,7 @@
 
 % Highlight the best embedding size  
 \addplot[red, only marks, mark=*] coordinates {  
-    ({best_params}, {best_score})  
+    (3.0, 0.7730529305366673)  
 };  
 
 \legend{R2, Best Embedding Size (3)}  
