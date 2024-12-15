@@ -26,6 +26,8 @@ Our findings demonstrate that DeepWalk embeddings significantly improved the per
 - NetworkX 3.3
 - NumPy 1.24+
 - Scikit-learn 1.5+
+- gensim 4.3.2
+- scipy 1.12
 
 ## Getting Started
 
