@@ -32,7 +32,7 @@ Our findings demonstrate that DeepWalk embeddings significantly improved the per
 ## Getting Started
 
 1. Clone the repository using `git clone https://github.com/mamintoosi/Deepwalk-HPP.git`
-2. Install the required libraries
+2. Install the required libraries by `pip install -r requirements.txt`
 3. Open the `Deepwalk-HPP.ipynb` Jupyter Notebook and run the cells to reproduce the experiments
 
 ## Data
