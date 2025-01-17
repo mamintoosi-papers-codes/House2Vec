@@ -33,12 +33,22 @@ Our findings demonstrate that DeepWalk embeddings significantly improved the per
 
 1. Clone the repository using `git clone https://github.com/mamintoosi/Deepwalk-HPP.git`
 2. Install the required libraries by `pip install -r requirements.txt`
-3. Open the `Deepwalk-HPP.ipynb` Jupyter Notebook and run the cells to reproduce the experiments
+3. Open a Jupyter Notebook and run the cells to reproduce the experiments
 
 ## Data
 
-Excel file 'Mashhad_Real_Estate_Data.xlsx' is the dataset used in the paper, which is included in the repository.
+The `data` folder contains two datasets:
+
+1. **California-housing.csv**: Dataset related to California housing.
+2. **MHD-housing.xlsx**: Dataset related to Mashhad (MHD) real estate.
 
 ## Usage
 
-The `Deepwalk-HPP.ipynb` Jupyter Notebook is the main entry point of the repository. Running the notebook will execute the code and produce the results reported in the paper.
+There are two separate Jupyter Notebooks for each dataset:
+
+1. **DeepWalk-HPP-California.ipynb**: This notebook is used to run the analysis on the California housing dataset.
+2. **DeepWalk-HPP-MHD.ipynb**: This notebook is used to run the analysis on the Mashhad (MHD) real estate dataset.
+
+### Running the Notebooks
+- Execute the corresponding notebook (`DeepWalk-HPP-California.ipynb` or `DeepWalk-HPP-MHD.ipynb`) to generate the results reported in the paper.
+- The results for each dataset will be saved in the `results` folder, inside a subfolder named after the dataset (e.g., `results/California` or `results/MHD`).
