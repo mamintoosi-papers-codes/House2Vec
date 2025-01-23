@@ -1,0 +1,37 @@
+  
+\begin{tikzpicture}  
+\begin{axis}[  
+    width=12cm,  
+    height=8cm,  
+    xlabel={Embedding Size},  
+    ylabel={R2 },  
+    xtick={2,3,4,5,10,15,20},  
+    ymin=0.7526495212990717, ymax=0.7713678384179161,  
+    grid=both,  
+    ticklabel style={/pgf/number format/fixed},  
+    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=1},  
+    ymajorgrids=true,  
+    xmajorgrids=true,  
+    every axis plot/.append style={thick}  
+]  
+
+% Data points  
+\addplot[blue, mark=*] coordinates {  
+    (2.0, 0.7713678384179161)
+    (3.0, 0.7568855474001921)
+    (4.0, 0.7526495212990717)
+    (5.0, 0.757767255781037)
+    (10.0, 0.7623818138099974)
+    (15.0, 0.7648247405476889)
+    (20.0, 0.7705523064722632)
+};   
+
+% Highlight the best embedding size  
+\addplot[red, only marks, mark=*] coordinates {  
+    ({best_params}, {best_score})  
+};  
+
+\legend{R2, Best Embedding Size (2)}  
+
+\end{axis}  
+\end{tikzpicture}  
