@@ -1,12 +1,12 @@
 # Deepwalk-HPP
 
-Deepwalk-HPP is a Python repository that implements house representation learning using DeepWalk, a network representation learning technique. The repository contains the code and data used in the paper "House Price Prediction Using DeepWalk".
+Deepwalk-HPP is a Python repository that implements house representation learning using DeepWalk, a network representation learning technique. The repository contains the code and data used in the paper "Beyond Coordinates: Integrating Deep Walk Representations in House Price Prediction Models".
 
 ![](images/graph.png)
 
 ## Abstract
 
-This paper presents a novel approach to enhancing house price prediction by incorporating spatial information using DeepWalk. Traditional methods often rely solely on latitude and longitude as spatial features. In contrast, this study leverages DeepWalk to capture richer spatial relationships. An undirected graph is constructed by connecting houses based on a predefined geographical proximity threshold. DeepWalk generates 3-dimensional semantic vector representations for each house, encoding implicit spatial proximity information. These representations are combined with other house features (e.g., area, number of rooms, age) as input to various machine learning models, including Random Forest, Linear Regression, and Gradient Boosting. Experiments on a house price predicion dataset validate the effectiveness of the proposed method. The integration of DeepWalk-derived semantic vectors significantly improves performance, as evidenced by reductions in mean squared error and increases in correlation coefficient across models.
+This paper presents a novel approach to enhancing house price prediction by incorporating spatial information using DeepWalk. Traditional methods often rely solely on latitude and longitude as spatial features. In contrast, this study leverages DeepWalk to capture richer spatial relationships. An undirected graph is constructed by connecting houses based on a predefined geographical proximity threshold. DeepWalk generates 3-dimensional semantic vector representations for each house, encoding implicit spatial proximity information. These representations are combined with other house features (e.g., area, number of rooms, age) as input to various machine learning models, including Random Forest, Linear Regression, and Gradient Boosting. Experiments on house price data from Mashhad city validate the effectiveness of the proposed method. The integration of DeepWalk-derived semantic vectors significantly improves performance, as evidenced by reductions in mean squared error and increases in correlation coefficient across models.
 
 ![](images/proposedModel.png)
 
