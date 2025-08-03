@@ -5,8 +5,8 @@
     height=8cm,  
     xlabel={Embedding Size},  
     ylabel={R2 },  
-    xtick={2,3,4,5,10,15,20},  
-    ymin=0.8278746192363403, ymax=0.8332427783193037,  
+    xtick={2,5,10,15,20},  
+    ymin=0.8263632558069183, ymax=0.8314222768109711,  
     grid=both,  
     ticklabel style={/pgf/number format/fixed},  
     legend style={at={(0.5,-0.2)}, anchor=north, legend columns=1},  
@@ -17,13 +17,11 @@
 
 % Data points  
 \addplot[blue, mark=*] coordinates {  
-    (2.0, 0.8279476871118658)
-    (3.0, 0.8281712605073157)
-    (4.0, 0.8278746192363403)
-    (5.0, 0.8282773431781433)
-    (10.0, 0.8300777276889197)
-    (15.0, 0.8332427783193037)
-    (20.0, 0.8306366459920242)
+    (2.0, 0.8263632558069183)
+    (5.0, 0.8288240480187328)
+    (10.0, 0.8314222768109711)
+    (15.0, 0.8313564562560176)
+    (20.0, 0.8288573740189479)
 };   
 
 % Highlight the best embedding size  
@@ -31,7 +29,7 @@
     ({best_params}, {best_score})  
 };  
 
-\legend{R2, Best Embedding Size (15)}  
+\legend{R2, Best Embedding Size (10)}  
 
 \end{axis}  
 \end{tikzpicture}  

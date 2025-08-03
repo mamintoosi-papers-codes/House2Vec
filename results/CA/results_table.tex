@@ -1,26 +1,24 @@
-\begin{longtable}{lrrrr}
-\caption{Results of Regression Models}
-\label{tab:regression_results}\\
+\begin{longtable}{lrrrrr}
+\caption{Results of Regression Models} \label{tab:regression_results} \\
 \toprule
-                       Model &  R2 Score &     MAPE &  Accuracy &         RMSE \\
+Model & R2 Score & MAPE & Accuracy & RMSE & MSE_log \\
 \midrule
 \endfirsthead
 \caption[]{Results of Regression Models} \\
 \toprule
-                       Model &  R2 Score &     MAPE &  Accuracy &         RMSE \\
+Model & R2 Score & MAPE & Accuracy & RMSE & MSE_log \\
 \midrule
 \endhead
 \midrule
-\multicolumn{5}{r}{{Continued on next page}} \\
+\multicolumn{6}{r}{Continued on next page} \\
 \midrule
 \endfoot
-
 \bottomrule
 \endlastfoot
-           Gradient Boosting &  0.847977 & 0.163858 &  0.743640 & 45977.741438 \\
-Gradient Boosting (DeepWalk) &  0.849466 & 0.163566 &  0.739726 & 45751.989915 \\
-           Linear Regression &  0.652836 & 0.289197 &  0.481898 & 69480.093428 \\
-Linear Regression (DeepWalk) &  0.665635 & 0.285806 &  0.489726 & 68187.287058 \\
-               Random Forest &  0.798124 & 0.206361 &  0.621820 & 52982.817490 \\
-    Random Forest (DeepWalk) &  0.807738 & 0.205028 &  0.630626 & 51705.849759 \\
+Gradient Boosting & 0.847977 & 0.163858 & 0.743640 & 45977.741438 & 0.009783 \\
+Gradient Boosting (Node2Vec) & 0.852177 & 0.162413 & 0.734834 & 45338.155200 & 0.009545 \\
+Linear Regression & 0.650191 & 0.293836 & 0.481898 & 69744.261976 & 0.027788 \\
+Linear Regression (Node2Vec) & 0.655729 & 0.294509 & 0.481898 & 69189.977178 & 0.027208 \\
+Random Forest & 0.798124 & 0.206361 & 0.621820 & 52982.817490 & 0.013017 \\
+Random Forest (Node2Vec) & 0.809013 & 0.199833 & 0.651174 & 51534.055871 & 0.012583 \\
 \end{longtable}
