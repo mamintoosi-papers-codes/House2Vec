@@ -169,3 +169,4 @@ cython_debug/
 #.idea/
 results/*.padvish.backup.stt
 results/*.synctex.gz
+results - Copy/
