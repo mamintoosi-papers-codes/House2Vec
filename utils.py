@@ -242,9 +242,9 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 # Grid Search for embedding size
 # -----------------------------
 def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
-                               score_name="rmse", random_state=42, dataset_name="CA"):
+                               score_name="r2", random_state=42, dataset_name="CA"):
     """Perform grid search for embedding size for DeepWalk or Node2Vec."""
-    best_score = np.inf
+    best_score = np.inf if score_name == 'rmse' else -np.inf
     best_params, best_X, best_y = None, None, None
     results = []
 
@@ -268,12 +268,23 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
 
             model = GradientBoostingRegressor(loss='huber', n_estimators=100,
                                               max_depth=10, random_state=random_state)
-            _, _, _, rmse, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
-            scores.append(rmse)
+            # _, _, _, rmse, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
+            if score_name == 'rmse':
+                _, _, _, score, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
+            else: # r2
+                score, _, _, _, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
+            
+            scores.append(score)
 
         mean_score = np.mean(scores)
         results.append((vector_size, mean_score))
-        if mean_score < best_score:
+
+                # Update best score and parameters
+        if score_name == 'rmse':
+            condition = mean_score < best_score
+        else:
+            condition = mean_score > best_score
+        if condition == True:
             best_score, best_params, best_X, best_y = mean_score, vector_size, X, y
 
     results_df = pd.DataFrame(results, columns=['Embedding Size', score_name])
