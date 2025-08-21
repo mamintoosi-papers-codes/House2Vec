@@ -41,9 +41,19 @@ def load_dataset(dataset_name: str):
         return df, numeric_features, threshold
 
     elif dataset_name == "MHD":
-        df = pd.read_csv("data/MHD-housing.csv")
-        df = df.dropna().reset_index(drop=True)
-        df['id'] = df.index
+
+        data= pd.read_excel('data/MHD-housing.xlsx')
+        # Filter the data for the specified region
+        filtered_data = data[(data['longitude'] >= 59.4) & (data['longitude'] <= 59.7) &
+                            (data['latitude'] >= 36.2) & (data['latitude'] <= 36.45)]
+        np.random.seed(42)
+        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=5000, replace=False,)
+        df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
+        df['id'] = df.index  # Add this line to create a unique identifier for each house
+
+        # df = pd.read_csv("data/MHD-housing.csv")
+        # df = df.dropna().reset_index(drop=True)
+        # df['id'] = df.index
 
         numeric_features = [
             'area_sq_m', 'age_years',
@@ -68,16 +78,32 @@ def create_graph_from_dataframe(df, numeric_features, distance_threshold=4000):
     tree = cKDTree(coordinates)
     G = nx.Graph()
 
-    for _, row in df.iterrows():
-        G.add_node(row['id'], **row.to_dict())
+    for i, row in df.iterrows():
+        node_id = int(row['id'])
+        G.add_node(node_id, **row.to_dict())
 
     pairs = tree.query_pairs(distance_threshold / 111000)
 
-    for idx1, idx2 in tqdm(pairs, desc="Building graph"):
-        geo_distance = np.linalg.norm(coordinates[idx1] - coordinates[idx2])
-        weight = 1 / (1 + geo_distance)
-        if weight > 0:
-            G.add_edge(df.at[idx1, 'id'], df.at[idx2, 'id'], weight=weight)
+    # Define a function to compute edge weight  
+    def calculate_weight(df, idx1, idx2):  
+        if 'type' in df.columns:
+            # no edge if the types are different in MHD dataset
+            if df.loc[idx1, 'type'] != df.loc[idx2, 'type']:
+                return 0
+        geo_distance = np.linalg.norm(coordinates[idx1] - coordinates[idx2])  
+        # num_distance = np.linalg.norm(df.loc[idx1, numeric_features] - df.loc[idx2, numeric_features])  
+        # binary_similarity = np.sum(df.loc[idx1, binary_features] == df.loc[idx2, binary_features])   
+        # weight = (1 / (1 + geo_distance)) * (1 + binary_similarity) / (1 + num_distance)  
+
+        weight = (1 / (1 + geo_distance))  
+        return weight  
+
+    # Add edges with weights  
+    for idx1, idx2 in tqdm(pairs,  desc="Building graph"):  
+        weight = calculate_weight(df, idx1, idx2)  
+        if weight != 0:  
+            G.add_edge(df.at[idx1, 'id'], df.at[idx2, 'id'], weight=weight)  # Use ids for edges  
+
     return G
 
 
