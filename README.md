@@ -37,10 +37,9 @@ This demonstrates the flexibility of graph-based embeddings for **geospatial fea
 
 Our experiments highlight that:
 
-- **Node2Vec** yields the best results in the California dataset.
-- **DeepWalk** yields the best results in the Mashhad dataset.
+- **Node2Vec** yields the best results in the California dataset (CA).
+- **DeepWalk** yields the best results in the Mashhad dataset (MHD).
 - In both datasets, graph embeddings **outperform raw baseline features** in terms of higher R² and lower prediction errors.
-- The benefit is especially clear for **tree-based models** (Random Forest, Gradient Boosting).
 
 ---
 
