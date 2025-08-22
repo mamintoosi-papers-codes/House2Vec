@@ -170,4 +170,5 @@ cython_debug/
 results/*.padvish.backup.stt
 results/*.synctex.gz
 results - Copy/
+tmp/
 
