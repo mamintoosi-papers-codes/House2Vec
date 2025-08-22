@@ -1,24 +1,48 @@
-# Deepwalk-HPP
+# House2Vec
 
-Deepwalk-HPP is a Python repository that implements house representation learning using DeepWalk, a network representation learning technique. The repository contains the code and data used in the paper "Beyond Coordinates: Integrating Deep Walk Representations in House Price Prediction Models".
+House2Vec is a Python repository for **house representation learning** using **graph-based embedding methods** (DeepWalk and Node2Vec).  
+The goal is to enhance **house price prediction** by capturing **spatial relationships** among properties through network representation learning.
+
+The repository implements and extends the work from the paper:  
+_"Beyond Coordinates: Integrating Graph Embeddings in House Price Prediction Models"_.
 
 ![](images/graph.png)
 
+---
+
 ## Abstract
 
-This paper presents a novel approach to enhancing house price prediction by incorporating spatial information using DeepWalk. Traditional methods often rely solely on latitude and longitude as spatial features. In contrast, this study leverages DeepWalk to capture richer spatial relationships. An undirected graph is constructed by connecting houses based on a predefined geographical proximity threshold. DeepWalk generates 3-dimensional semantic vector representations for each house, encoding implicit spatial proximity information. These representations are combined with other house features (e.g., area, number of rooms, age) as input to various machine learning models, including Random Forest, Linear Regression, and Gradient Boosting. Experiments on two house price prediction dataset, validate the effectiveness of the proposed method. The integration of DeepWalk-derived semantic vectors significantly improves performance, as evidenced by reductions in mean squared error and increases in correlation coefficient across models.
+Traditional house price prediction models often rely on tabular features (area, rooms, age, etc.) and use latitude/longitude only as raw spatial features. Such approaches fail to capture the **structural relationships** between neighboring houses.
+
+In this work, we build a **spatial graph of houses**, connecting properties that lie within a predefined geographical threshold. Using this graph, we train **graph embeddings** with both **DeepWalk** and **Node2Vec**. These embeddings encode higher-order spatial proximity into dense vectors, which are then combined with conventional house features.
+
+We evaluate three regression models (**Random Forest, Linear Regression, Gradient Boosting**) across two real-world datasets (California Housing, Mashhad Housing). Results show that:
+
+- Graph embeddings **significantly improve predictive performance** compared to raw features.
+- For **California**, Node2Vec embeddings outperform both DeepWalk and raw features.
+- For **Mashhad**, DeepWalk embeddings show the strongest improvements.
+- Gradient Boosting and Random Forest benefit the most from the enriched feature space, while Linear Regression sees only marginal gains.
+
+This demonstrates the flexibility of graph-based embeddings for **geospatial feature engineering**, offering more robust house price prediction models.
 
 ![](images/proposedModel.png)
 
-> The overall framework: Process for generating spatially-aware feature embeddings, combining spatial proximity graph-based Word2Vec embeddings with conventional features for enhanced feature representation.
+---
 
 ## Results
 
 ![](images/results.png)
 
-> Grouped bar charts showing the performance of regression models (R² and MSE) with and without DeepWalk.
+> Grouped bar charts showing the performance of regression models (R² and RMSE) with Raw features, DeepWalk embeddings, and Node2Vec embeddings.
 
-Our findings demonstrate that DeepWalk embeddings significantly improved the performance of Gradient Boosting and Random Forest models, enhancing their predictive accuracy and reducing errors. Gradient Boosting, in particular, showed the most substantial gains, benefiting from the enriched structural information provided by the embeddings. Random Forest also exhibited notable improvements in predictive reliability and error reduction. In contrast, Linear Regression showed only marginal benefits, reflecting its limited capacity to leverage the complex features embedded by DeepWalk.
+Our experiments highlight that:
+
+- **Node2Vec** yields the best results in the California dataset.
+- **DeepWalk** yields the best results in the Mashhad dataset.
+- In both datasets, graph embeddings **outperform raw baseline features** in terms of higher R² and lower prediction errors.
+- The benefit is especially clear for **tree-based models** (Random Forest, Gradient Boosting).
+
+---
 
 ## Requirements
 
@@ -28,27 +52,63 @@ Our findings demonstrate that DeepWalk embeddings significantly improved the per
 - Scikit-learn 1.5+
 - gensim 4.3.2
 - scipy 1.12
+- pandas 2.2+
+- matplotlib 3.8+
+
+Install requirements via:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
 
 ## Getting Started
 
-1. Clone the repository using `git clone https://github.com/mamintoosi/Deepwalk-HPP.git`
-2. Install the required libraries by `pip install -r requirements.txt`
-3. Open a Jupyter Notebook and run the cells to reproduce the experiments
+### 1. Run experiments from Jupyter Notebook
+
+Open `main.ipynb` and execute the cells to:
+
+- Run experiments for both datasets
+- Save Excel result tables
+- Generate comparison plots (R² and MSE/Log-MSE)
+
+### 2. Run experiments from command line
+
+Example usage:
+
+```bash
+python main_hpp.py --dataset CA --embedding_sizes 2 5 10 20
+python main_hpp.py --dataset MHD --embedding_sizes 2 5 10 20
+```
+
+This performs grid search over embedding sizes, selects the best size, and evaluates models with Raw, DeepWalk, and Node2Vec embeddings.
+Results (Excel + plots) are saved in `results/<dataset_name>/`.
+
+---
 
 ## Data
 
 The `data` folder contains two datasets:
 
-1. **California-housing.csv**: Dataset related to California housing.
-2. **MHD-housing.xlsx**: Dataset related to Mashhad (MHD) real estate.
+1. **California-housing.csv**
+   Classic California housing dataset.
+2. **MHD-housing.xlsx**
+   A dataset of Mashhad housing records.
 
-## Usage
+Both datasets include geographic coordinates for spatial graph construction.
 
-There are two separate Jupyter Notebooks for each dataset:
+---
 
-1. **DeepWalk-HPP-California.ipynb**: This notebook is used to run the analysis on the California housing dataset.
-2. **DeepWalk-HPP-MHD.ipynb**: This notebook is used to run the analysis on the Mashhad (MHD) real estate dataset.
+## Citation
 
-### Running the Notebooks
-- Execute the corresponding notebook (`DeepWalk-HPP-California.ipynb` or `DeepWalk-HPP-MHD.ipynb`) to generate the results reported in the paper.
-- The results for each dataset will be saved in the `results` folder, inside a subfolder named after the dataset (e.g., `results/California` or `results/MHD`).
+If you use this repository in your research, please cite:
+
+```
+@article{House2Vec2025,
+  title={Beyond Coordinates: Integrating Graph Embeddings in House Price Prediction Models},
+  author={Amintoosi, Mahmood and Ashkezari-Toussi, Soheila},
+  year={2025},
+  note={pre-print}
+}
+```
