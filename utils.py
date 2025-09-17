@@ -254,7 +254,7 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
         if method == "deepwalk":
             X, y, _ = train_deepwalk_embeddings(G, df, vector_size)
         elif method == "node2vec":
-            X, y, _ = train_node2vec_embeddings(G, df, vector_size)
+            X, y, _ = train_node2vec_embeddings(G, df, vector_size, return_weight=3, neighbor_weight=1)
         else:
             raise ValueError("Unknown method")
 
@@ -266,8 +266,9 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
             X_tr, X_val = X_train.iloc[tr_idx], X_train.iloc[val_idx]
             y_tr, y_val = y_train.iloc[tr_idx], y_train.iloc[val_idx]
 
-            model = GradientBoostingRegressor(loss='huber', n_estimators=100,
-                                              max_depth=10, random_state=random_state)
+            # model = GradientBoostingRegressor(loss='huber', n_estimators=100,
+            #                                   max_depth=10, random_state=random_state)
+            model = RandomForestRegressor(random_state=random_state)
             # _, _, _, rmse, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
             if score_name == 'rmse':
                 _, _, _, score, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
