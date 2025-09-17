@@ -53,7 +53,7 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64]):
         # ("LinearRegression", LinearRegression()),
         ("RandomForest", RandomForestRegressor(random_state=42)),
     ]:
-        best_dw_size, X_dw, y_dw, _ = grid_search_embedding_size(model,
+        best_dw_size, X_dw, y_dw, _ = grid_search_embedding_size(model,model_name,
             df, G, embedding_sizes, method="deepwalk", dataset_name=dataset_name)
         X_train, X_test, y_train, y_test = train_test_split(X_dw, y_dw, test_size=0.1, random_state=42)
         metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
@@ -68,7 +68,7 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64]):
         # ("LinearRegression", LinearRegression()),
         ("RandomForest", RandomForestRegressor(random_state=42)),
     ]:
-        best_n2v_size, X_n2v, y_n2v, _ = grid_search_embedding_size(model,
+        best_n2v_size, X_n2v, y_n2v, _ = grid_search_embedding_size(model,model_name,
             df, G, embedding_sizes, method="node2vec", dataset_name=dataset_name)
         X_train, X_test, y_train, y_test = train_test_split(X_n2v, y_n2v, test_size=0.1, random_state=42)        
         metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)

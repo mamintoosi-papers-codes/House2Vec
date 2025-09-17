@@ -241,7 +241,7 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 # -----------------------------
 # Grid Search for embedding size
 # -----------------------------
-def grid_search_embedding_size(model, df, G, embedding_sizes, method="deepwalk",
+def grid_search_embedding_size(model, model_name, df, G, embedding_sizes, method="deepwalk",
                                score_name="r2", random_state=42, dataset_name="CA"):
     """Perform grid search for embedding size for DeepWalk or Node2Vec."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
@@ -292,7 +292,7 @@ def grid_search_embedding_size(model, df, G, embedding_sizes, method="deepwalk",
     print(f"[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
 
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    results_df.to_excel(f"results/{dataset_name}/{method}_embedding_size_results.xlsx", index=False)
+    results_df.to_excel(f"results/{dataset_name}/{method}_{model_name}_embedding_size_results.xlsx", index=False)
 
     plt.figure(figsize=(10, 6))
     plt.plot(results_df['Embedding Size'], results_df[score_name], marker='o')
@@ -301,7 +301,7 @@ def grid_search_embedding_size(model, df, G, embedding_sizes, method="deepwalk",
     plt.xlabel("Embedding Size")
     plt.ylabel(score_name.upper())
     plt.grid(True)
-    plt.savefig(f"results/{dataset_name}/{method}_embedding_size_plot.png")
+    plt.savefig(f"results/{dataset_name}/{method}_{model_name}_embedding_size_plot.png")
     plt.close()
 
     return best_params, best_X, best_y, results_df
