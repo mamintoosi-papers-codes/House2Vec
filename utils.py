@@ -241,7 +241,7 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 # -----------------------------
 # Grid Search for embedding size
 # -----------------------------
-def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
+def grid_search_embedding_size(model, df, G, embedding_sizes, method="deepwalk",
                                score_name="r2", random_state=42, dataset_name="CA"):
     """Perform grid search for embedding size for DeepWalk or Node2Vec."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
@@ -268,7 +268,7 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
 
             # model = GradientBoostingRegressor(loss='huber', n_estimators=100,
             #                                   max_depth=10, random_state=random_state)
-            model = RandomForestRegressor(random_state=random_state)
+            # model = RandomForestRegressor(random_state=random_state)
             # _, _, _, rmse, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
             if score_name == 'rmse':
                 _, _, _, score, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
