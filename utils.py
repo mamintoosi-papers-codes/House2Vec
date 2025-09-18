@@ -59,7 +59,7 @@ def load_dataset(dataset_name: str):
             'area_sq_m', 'age_years',
             'floor_number', 'number_of_bedrooms'
         ]
-        threshold = 50   # meters
+        threshold = 40   # meters
         return df, numeric_features, threshold
 
     else:
@@ -242,13 +242,13 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 # Grid Search for embedding size
 # -----------------------------
 def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
-                               score_name="r2", random_state=42, dataset_name="CA"):
+                               score_name="r2", random_state=42, dataset_name="CA",
+                               num_walks=60, walk_length=15, p=3, q=1):
     """Perform grid search for embedding size for DeepWalk or Node2Vec."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
     best_params, best_X, best_y = None, None, None
     results = []
-    num_walks=60
-    walk_length=15
+
     for vector_size in embedding_sizes:
         print(f"[{method}] Evaluating embedding size: {vector_size}")
 
@@ -256,7 +256,7 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
             X, y, _ = train_deepwalk_embeddings(G, df, vector_size, num_walks=num_walks, walk_length=walk_length)
         elif method == "node2vec":
             X, y, _ = train_node2vec_embeddings(G, df, vector_size, num_walks=num_walks, walk_length=walk_length,
-                                                 return_weight=3, neighbor_weight=1)
+                                                 return_weight=p, neighbor_weight=q)
         else:
             raise ValueError("Unknown method")
 
@@ -338,5 +338,5 @@ def graph_report(G):
     print(f"Minimum number of neighbors: {min_neighbors}")  
     print(f"Maximum number of neighbors: {max_neighbors}")  
     print(f"Average number of neighbors: {avg_neighbors:.2f}")  
-    print("\nDegree Distribution Summary:")  
-    print(degree_stats)  
+    # print("\nDegree Distribution Summary:")  
+    # print(degree_stats)  
