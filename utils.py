@@ -59,7 +59,7 @@ def load_dataset(dataset_name: str):
             'area_sq_m', 'age_years',
             'floor_number', 'number_of_bedrooms'
         ]
-        threshold = 2000   # meters
+        threshold = 50   # meters
         return df, numeric_features, threshold
 
     else:
@@ -157,9 +157,9 @@ def get_embeddings(model, G, prefix="deepwalk"):
     return embeddings_df
 
 
-def train_deepwalk_embeddings(G, df, vector_size=16):
+def train_deepwalk_embeddings(G, df, vector_size=16, num_walks=40, walk_length=15):
     """Full pipeline for DeepWalk embeddings."""
-    walks = generate_random_walks_deepwalk(G)
+    walks = generate_random_walks_deepwalk(G, num_walks=num_walks, walk_length=walk_length)
     wv_model = create_word2vec_model(walks, vector_size=vector_size)
     emb_df = get_embeddings(wv_model, G, prefix="deepwalk")
     df_with_embeddings = pd.concat([df.reset_index(drop=True), emb_df], axis=1)
@@ -188,11 +188,11 @@ def generate_random_walks_node2vec(G, num_walks=80, walk_length=10,
     return walks
 
 
-def train_node2vec_embeddings(G, df, vector_size=16,
+def train_node2vec_embeddings(G, df, vector_size=16, num_walks=40, walk_length=15,
                               return_weight=3, neighbor_weight=1):
     """Full pipeline for Node2Vec embeddings."""
     walks = generate_random_walks_node2vec(
-        G, num_walks=80, walk_length=10,
+        G,  num_walks=num_walks, walk_length=walk_length, 
         return_weight=return_weight, neighbor_weight=neighbor_weight
     )
     wv_model = create_word2vec_model(walks, vector_size=vector_size)
@@ -241,20 +241,22 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 # -----------------------------
 # Grid Search for embedding size
 # -----------------------------
-def grid_search_embedding_size(model, model_name, df, G, embedding_sizes, method="deepwalk",
+def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
                                score_name="r2", random_state=42, dataset_name="CA"):
     """Perform grid search for embedding size for DeepWalk or Node2Vec."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
     best_params, best_X, best_y = None, None, None
     results = []
-
+    num_walks=60
+    walk_length=15
     for vector_size in embedding_sizes:
         print(f"[{method}] Evaluating embedding size: {vector_size}")
 
         if method == "deepwalk":
-            X, y, _ = train_deepwalk_embeddings(G, df, vector_size)
+            X, y, _ = train_deepwalk_embeddings(G, df, vector_size, num_walks=num_walks, walk_length=walk_length)
         elif method == "node2vec":
-            X, y, _ = train_node2vec_embeddings(G, df, vector_size, return_weight=3, neighbor_weight=1)
+            X, y, _ = train_node2vec_embeddings(G, df, vector_size, num_walks=num_walks, walk_length=walk_length,
+                                                 return_weight=3, neighbor_weight=1)
         else:
             raise ValueError("Unknown method")
 
@@ -268,7 +270,7 @@ def grid_search_embedding_size(model, model_name, df, G, embedding_sizes, method
 
             # model = GradientBoostingRegressor(loss='huber', n_estimators=100,
             #                                   max_depth=10, random_state=random_state)
-            # model = RandomForestRegressor(random_state=random_state)
+            model = RandomForestRegressor(random_state=random_state)
             # _, _, _, rmse, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
             if score_name == 'rmse':
                 _, _, _, score, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
@@ -292,7 +294,7 @@ def grid_search_embedding_size(model, model_name, df, G, embedding_sizes, method
     print(f"[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
 
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    results_df.to_excel(f"results/{dataset_name}/{method}_{model_name}_embedding_size_results.xlsx", index=False)
+    results_df.to_excel(f"results/{dataset_name}/{method}_embedding_size_results.xlsx", index=False)
 
     plt.figure(figsize=(10, 6))
     plt.plot(results_df['Embedding Size'], results_df[score_name], marker='o')
@@ -301,7 +303,40 @@ def grid_search_embedding_size(model, model_name, df, G, embedding_sizes, method
     plt.xlabel("Embedding Size")
     plt.ylabel(score_name.upper())
     plt.grid(True)
-    plt.savefig(f"results/{dataset_name}/{method}_{model_name}_embedding_size_plot.png")
+    plt.savefig(f"results/{dataset_name}/{method}_embedding_size_plot.png")
     plt.close()
 
     return best_params, best_X, best_y, results_df
+
+
+def graph_report(G):
+    # Assuming G is your NetworkX graph created from the df DataFrame  
+    # and df contains the relevant house data with longitude and latitude  
+
+    # Step 1: Calculate basic statistics  
+    num_nodes = G.number_of_nodes()  
+    num_edges = G.number_of_edges()  
+    degrees = [len(list(G.neighbors(node))) for node in G.nodes]  # List of number of neighbors for each node  
+
+    # Step 2: Compute minimum, maximum, and average number of neighbors  
+    min_neighbors = min(degrees)  
+    max_neighbors = max(degrees)  
+    avg_neighbors = sum(degrees) / num_nodes if num_nodes > 0 else 0  
+
+    # Step 3: Create a DataFrame for a better overview  
+    degree_distribution = pd.DataFrame({  
+        'Node ID': list(G.nodes),  
+        'Num Neighbors': degrees  
+    })  
+
+    # Step 4: Summary statistics of the degree distribution  
+    degree_stats = degree_distribution['Num Neighbors'].describe()  
+
+    # Step 5: Output the results  
+    print(f"Total number of nodes: {num_nodes}")  
+    print(f"Total number of edges: {num_edges}")  
+    print(f"Minimum number of neighbors: {min_neighbors}")  
+    print(f"Maximum number of neighbors: {max_neighbors}")  
+    print(f"Average number of neighbors: {avg_neighbors:.2f}")  
+    print("\nDegree Distribution Summary:")  
+    print(degree_stats)  
