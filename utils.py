@@ -86,10 +86,10 @@ def create_graph_from_dataframe(df, numeric_features, distance_threshold=4000):
 
     # Define a function to compute edge weight  
     def calculate_weight(df, idx1, idx2):  
-        # if 'type' in df.columns:
-        #     # no edge if the types are different in MHD dataset
-        #     if df.loc[idx1, 'type'] != df.loc[idx2, 'type']:
-        #         return 0
+        if 'type' in df.columns:
+            # no edge if the types are different in MHD dataset
+            if df.loc[idx1, 'type'] != df.loc[idx2, 'type']:
+                return 0
         geo_distance = np.linalg.norm(coordinates[idx1] - coordinates[idx2])  
         # num_distance = np.linalg.norm(df.loc[idx1, numeric_features] - df.loc[idx2, numeric_features])  
         # binary_similarity = np.sum(df.loc[idx1, binary_features] == df.loc[idx2, binary_features])   

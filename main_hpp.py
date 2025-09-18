@@ -111,8 +111,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, required=True, help="Dataset name: CA or MHD")
     parser.add_argument("--num-walks", type=int, default=80)
     parser.add_argument("--walk-length", type=int, default=10)
-    parser.add_argument("--p", type=float, default=3)
-    parser.add_argument("--q", type=float, default=1)
+    parser.add_argument("--p", type=int, default=3)
+    parser.add_argument("--q", type=int, default=1)
     parser.add_argument("--embedding_sizes", nargs="+", type=int, default=[8, 16, 32, 64],
                         help="List of embedding sizes to try for grid search")
     args = parser.parse_args()
