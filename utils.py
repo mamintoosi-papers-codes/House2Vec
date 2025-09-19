@@ -74,23 +74,32 @@ def load_dataset(dataset_name: str):
 # -----------------------------
 # Graph construction
 # -----------------------------
-def create_graph_from_dataframe(df, numeric_features, binary_features, k=35, scale_numeric=True, metric="euclidean"):
+def create_graph_from_dataframe(
+    df,
+    numeric_features,
+    binary_features,
+    k=35,
+    scale_numeric=True,
+    metric="euclidean",
+    use_edge_weights=True
+):
     """
-    Fast KNN-based graph construction for housing datasets.
+    KNN-based graph construction for housing datasets.
 
     - numeric_features: continuous attributes (scaled if scale_numeric=True)
     - binary_features: categorical/binary attributes (0/1 encoding)
     - k: number of neighbors per node
     - metric: distance metric for NearestNeighbors ('euclidean', 'cosine', etc.)
+    - use_edge_weights: if True, edges get weights = 1 / (1 + distance)
     """
     df_copy = df.copy()
 
-    # Scale numeric features if requested
+    # Scale only numeric features if requested
     if scale_numeric and numeric_features:
         scaler = StandardScaler()
         df_copy[numeric_features] = scaler.fit_transform(df_copy[numeric_features])
 
-    # Build feature space (coords + numeric + binary)
+    # Build feature space: coords (NOT scaled) + numeric + binary
     feature_list = ["latitude", "longitude"] + numeric_features + (binary_features if binary_features else [])
     X = df_copy[feature_list].to_numpy()
 
@@ -105,13 +114,21 @@ def create_graph_from_dataframe(df, numeric_features, binary_features, k=35, sca
         node_id = int(row['id'])
         G.add_node(node_id, **row.to_dict())
 
-    for i in tqdm(range(len(df)), desc="Building fast KNN graph"):
-        for j in indices[i][1:]:  # skip itself
+    for i in tqdm(range(len(df)), desc="Building KNN graph"):
+        for j_idx, j in enumerate(indices[i][1:]):  # skip itself
+            # enforce type constraint for MHD dataset
             if "type" in df.columns and df.loc[i, "type"] != df.loc[j, "type"]:
-                continue  # enforce type constraint for MHD dataset
-            G.add_edge(df.at[i, "id"], df.at[j, "id"])
+                continue  
+
+            if use_edge_weights:
+                dist = distances[i][j_idx + 1]  # distance to neighbor j
+                weight = 1.0 / (1.0 + dist)
+                G.add_edge(df.at[i, "id"], df.at[j, "id"], weight=weight)
+            else:
+                G.add_edge(df.at[i, "id"], df.at[j, "id"])
 
     return G
+
 
 # -----------------------------
 # DeepWalk
