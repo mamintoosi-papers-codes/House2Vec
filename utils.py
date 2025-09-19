@@ -92,17 +92,19 @@ def create_graph_from_dataframe(
     - metric: distance metric for NearestNeighbors ('euclidean', 'cosine', etc.)
     - use_edge_weights: if True, edges get weights = 1 / (1 + distance)
     """
-    df_copy = df.copy()
+    # df_copy = df.copy()
 
-    # Scale only numeric features if requested
-    if scale_numeric and numeric_features:
-        scaler = StandardScaler()
-        df_copy[numeric_features] = scaler.fit_transform(df_copy[numeric_features])
+    # # Scale only numeric features if requested
+    # if scale_numeric and numeric_features:
+    #     scaler = StandardScaler()
+    #     df_copy[numeric_features] = scaler.fit_transform(df_copy[numeric_features])
 
-    # Build feature space: coords (NOT scaled) + numeric + binary
-    feature_list = ["latitude", "longitude"] + numeric_features + (binary_features if binary_features else [])
-    X = df_copy[feature_list].to_numpy()
+    # # Build feature space: coords (NOT scaled) + numeric + binary
+    # feature_list = ["latitude", "longitude"] + numeric_features + (binary_features if binary_features else [])
+    # X = df_copy[feature_list].to_numpy()
 
+    # Use only Geo features 
+    X = df[["latitude", "longitude"]].to_numpy()
     # Fit Nearest Neighbors
     nn = NearestNeighbors(n_neighbors=k+1, metric=metric)  # k+1 because first neighbor is itself
     nn.fit(X)

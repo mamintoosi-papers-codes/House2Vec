@@ -39,44 +39,44 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], num_walks=
         X_base, y, test_size=0.1, random_state=42
     )
 
-    # for model_name, model in [
-    #     ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-    #     # ("LinearRegression", LinearRegression()),
-    #     ("RandomForest", RandomForestRegressor(random_state=42)),
-    # ]:
-    #     metrics = fit_and_evaluate(model, X_train_base, y_train, X_test_base, y_test, verbose=False)
-    #     results.append([f"{model_name} (Raw)", *metrics])
+    for model_name, model in [
+        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
+        # ("LinearRegression", LinearRegression()),
+        ("RandomForest", RandomForestRegressor(random_state=42)),
+    ]:
+        metrics = fit_and_evaluate(model, X_train_base, y_train, X_test_base, y_test, verbose=False)
+        results.append([f"{model_name} (Raw)", *metrics])
 
-    # # -----------------------------
-    # # DeepWalk with grid search
-    # # -----------------------------
-    # best_dw_size, X_dw, y_dw, _ = grid_search_embedding_size(
-    #     df, G, embedding_sizes, method="deepwalk", dataset_name=dataset_name, 
-    #     num_walks=num_walks, walk_length=walk_length, p=p, q=q)
-    # X_train, X_test, y_train, y_test = train_test_split(X_dw, y_dw, test_size=0.1, random_state=42)
-    # for model_name, model in [
-    #     ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-    #     # ("LinearRegression", LinearRegression()),
-    #     ("RandomForest", RandomForestRegressor(random_state=42)),
-    # ]:
-    #     metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
-    #     results.append([f"{model_name} (DeepWalk-ed{best_dw_size}-nw{num_walks}-wl{walk_length})", *metrics])
+    # -----------------------------
+    # DeepWalk with grid search
+    # -----------------------------
+    best_dw_size, X_dw, y_dw, _ = grid_search_embedding_size(
+        df, G, embedding_sizes, method="deepwalk", dataset_name=dataset_name, 
+        num_walks=num_walks, walk_length=walk_length, p=p, q=q)
+    X_train, X_test, y_train, y_test = train_test_split(X_dw, y_dw, test_size=0.1, random_state=42)
+    for model_name, model in [
+        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
+        # ("LinearRegression", LinearRegression()),
+        ("RandomForest", RandomForestRegressor(random_state=42)),
+    ]:
+        metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
+        results.append([f"{model_name} (DeepWalk-ed{best_dw_size}-nw{num_walks}-wl{walk_length})", *metrics])
 
 
-    # # -----------------------------
-    # # Node2Vec as DeepWalk, p=1, q=1
-    # # -----------------------------
-    # best_n2v_size, X_n2v, y_n2v, _ = grid_search_embedding_size(
-    #     df, G, embedding_sizes, method="node2vec", dataset_name=dataset_name,
-    #     num_walks=num_walks, walk_length=walk_length, p=1, q=1)
-    # X_train, X_test, y_train, y_test = train_test_split(X_n2v, y_n2v, test_size=0.1, random_state=42)  
-    # for model_name, model in [
-    #     ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-    #     # ("LinearRegression", LinearRegression()),
-    #     ("RandomForest", RandomForestRegressor(random_state=42)),
-    # ]:     
-    #     metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
-    #     results.append([f"{model_name} (Node2Vec-ed{best_n2v_size}-nw{num_walks}-wl{walk_length}-p1-q1)", *metrics])
+    # -----------------------------
+    # Node2Vec as DeepWalk, p=1, q=1
+    # -----------------------------
+    best_n2v_size, X_n2v, y_n2v, _ = grid_search_embedding_size(
+        df, G, embedding_sizes, method="node2vec", dataset_name=dataset_name,
+        num_walks=num_walks, walk_length=walk_length, p=1, q=1)
+    X_train, X_test, y_train, y_test = train_test_split(X_n2v, y_n2v, test_size=0.1, random_state=42)  
+    for model_name, model in [
+        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
+        # ("LinearRegression", LinearRegression()),
+        ("RandomForest", RandomForestRegressor(random_state=42)),
+    ]:     
+        metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
+        results.append([f"{model_name} (Node2Vec-ed{best_n2v_size}-nw{num_walks}-wl{walk_length}-p1-q1)", *metrics])
 
     # -----------------------------
     # Node2Vec with grid search
