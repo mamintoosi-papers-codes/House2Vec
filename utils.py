@@ -78,7 +78,7 @@ def create_graph_from_dataframe(
     df,
     numeric_features,
     binary_features,
-    k=35,
+    k=10,
     scale_numeric=True,
     metric="euclidean",
     use_edge_weights=True
