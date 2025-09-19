@@ -23,8 +23,8 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], num_walks=
     # -----------------------------
     # Load dataset & build graph
     # -----------------------------
-    df, numeric_features, threshold = load_dataset(dataset_name)
-    G = create_graph_from_dataframe(df, numeric_features, threshold)
+    df, numeric_features, binary_features = load_dataset(dataset_name)
+    G = create_graph_from_dataframe(df, numeric_features, binary_features)
 
     graph_report(G)
 

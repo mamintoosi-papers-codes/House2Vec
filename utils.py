@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, mean_squared_error
+from sklearn.neighbors import NearestNeighbors
 
 from gensim.models import Word2Vec
 from csrgraph import csrgraph
@@ -37,8 +38,9 @@ def load_dataset(dataset_name: str):
             'total_rooms', 'total_bedrooms',
             'population', 'households'
         ]
+        binary_features = ['ocean_proximity']
         threshold = 4000   # meters
-        return df, numeric_features, threshold
+        return df, numeric_features, binary_features, threshold
 
     elif dataset_name == "MHD":
 
@@ -59,8 +61,10 @@ def load_dataset(dataset_name: str):
             'area_sq_m', 'age_years',
             'floor_number', 'number_of_bedrooms'
         ]
+        binary_features = ['elevator', 'parking', 'storage', 'balcony', 'parquet',   
+                    'ceramic_flooring', 'stone_façade', 'garden', 'renovated'] 
         threshold = 40   # meters
-        return df, numeric_features, threshold
+        return df, numeric_features, binary_features
 
     else:
         raise ValueError("Unknown dataset name. Use 'CA' or 'MHD'.")
@@ -69,43 +73,44 @@ def load_dataset(dataset_name: str):
 # -----------------------------
 # Graph construction
 # -----------------------------
-def create_graph_from_dataframe(df, numeric_features, distance_threshold=4000):
-    """Create graph of properties based on spatial distance."""
-    scaler = StandardScaler()
-    df[numeric_features] = scaler.fit_transform(df[numeric_features])
+def create_graph_from_dataframe(df, numeric_features, binary_features, k=35, scale_numeric=True, metric="euclidean"):
+    """
+    Fast KNN-based graph construction for housing datasets.
 
-    coordinates = df[['latitude', 'longitude']].to_numpy()
-    tree = cKDTree(coordinates)
+    - numeric_features: continuous attributes (scaled if scale_numeric=True)
+    - binary_features: categorical/binary attributes (0/1 encoding)
+    - k: number of neighbors per node
+    - metric: distance metric for NearestNeighbors ('euclidean', 'cosine', etc.)
+    """
+    df_copy = df.copy()
+
+    # Scale numeric features if requested
+    if scale_numeric and numeric_features:
+        scaler = StandardScaler()
+        df_copy[numeric_features] = scaler.fit_transform(df_copy[numeric_features])
+
+    # Build feature space (coords + numeric + binary)
+    feature_list = ["latitude", "longitude"] + numeric_features + (binary_features if binary_features else [])
+    X = df_copy[feature_list].to_numpy()
+
+    # Fit Nearest Neighbors
+    nn = NearestNeighbors(n_neighbors=k+1, metric=metric)  # k+1 because first neighbor is itself
+    nn.fit(X)
+    distances, indices = nn.kneighbors(X)
+
+    # Build graph
     G = nx.Graph()
-
     for i, row in df.iterrows():
         node_id = int(row['id'])
         G.add_node(node_id, **row.to_dict())
 
-    pairs = tree.query_pairs(distance_threshold / 111000)
-
-    # Define a function to compute edge weight  
-    def calculate_weight(df, idx1, idx2):  
-        if 'type' in df.columns:
-            # no edge if the types are different in MHD dataset
-            if df.loc[idx1, 'type'] != df.loc[idx2, 'type']:
-                return 0
-        geo_distance = np.linalg.norm(coordinates[idx1] - coordinates[idx2])  
-        # num_distance = np.linalg.norm(df.loc[idx1, numeric_features] - df.loc[idx2, numeric_features])  
-        # binary_similarity = np.sum(df.loc[idx1, binary_features] == df.loc[idx2, binary_features])   
-        # weight = (1 / (1 + geo_distance)) * (1 + binary_similarity) / (1 + num_distance)  
-
-        weight = (1 / (1 + geo_distance))  
-        return weight  
-
-    # Add edges with weights  
-    for idx1, idx2 in tqdm(pairs,  desc="Building graph"):  
-        weight = calculate_weight(df, idx1, idx2)  
-        if weight != 0:  
-            G.add_edge(df.at[idx1, 'id'], df.at[idx2, 'id'], weight=weight)  # Use ids for edges  
+    for i in tqdm(range(len(df)), desc="Building fast KNN graph"):
+        for j in indices[i][1:]:  # skip itself
+            if "type" in df.columns and df.loc[i, "type"] != df.loc[j, "type"]:
+                continue  # enforce type constraint for MHD dataset
+            G.add_edge(df.at[i, "id"], df.at[j, "id"])
 
     return G
-
 
 # -----------------------------
 # DeepWalk
