@@ -76,7 +76,7 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], num_walks=
         ("RandomForest", RandomForestRegressor(random_state=42)),
     ]:     
         metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
-        results.append([f"{model_name} (Node2Vec-ed{best_n2v_size}-nw{num_walks}-wl{walk_length}-p{p}-q{q})", *metrics])
+        results.append([f"{model_name} (Node2Vec-ed{best_n2v_size}-nw{num_walks}-wl{walk_length}-p1-q1)", *metrics])
 
     # -----------------------------
     # Node2Vec with grid search

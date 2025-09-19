@@ -38,9 +38,10 @@ def load_dataset(dataset_name: str):
             'total_rooms', 'total_bedrooms',
             'population', 'households'
         ]
-        binary_features = ['ocean_proximity']
+        binary_features = ['ocean_proximity_INLAND', 'ocean_proximity_ISLAND',
+       'ocean_proximity_NEAR BAY', 'ocean_proximity_NEAR OCEAN']
         threshold = 4000   # meters
-        return df, numeric_features, binary_features, threshold
+        return df, numeric_features, binary_features
 
     elif dataset_name == "MHD":
 
