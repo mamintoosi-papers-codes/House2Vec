@@ -55,7 +55,7 @@ def load_dataset(dataset_name: str):
         # df['id'] = df.index  # Add this line to create a unique identifier for each house
 
         df = pd.read_excel('data/MHD-housing.xlsx')
-        shuffle_indices = np.random.choice(np.arange(df.shape[0]), size=10000, replace=False,)
+        shuffle_indices = np.random.choice(np.arange(df.shape[0]), size=20000, replace=False,)
         df = df.iloc[shuffle_indices].reset_index(drop=True)
         df = df.dropna().reset_index(drop=True)
         
