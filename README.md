@@ -1,10 +1,16 @@
+[![repo size](https://img.shields.io/github/repo-size/mamintoosi-papers-codes/House2Vec.svg)](https://github.com/mamintoosi-papers-codes/House2Vec/archive/master.zip)
+ [![GitHub forks](https://img.shields.io/github/forks/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/network)
+[![GitHub issues](https://img.shields.io/github/issues/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/issues)
+[![GitHub license](https://img.shields.io/github/license/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/blob/main/LICENSE)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main.ipynb)
+
 # House2Vec
 
 House2Vec is a Python repository for **property representation learning** using **graph-based embedding methods** (DeepWalk and Node2Vec).  
 The goal is to enhance **property value prediction** by capturing **spatial dependencies** among properties through network representation learning.
 
 The repository implements the following paper:  
-_"Beyond Coordinates: Incorporating Graph Embeddings into Property Value Prediction Models"_.
+_"Incorporating Graph Embeddings for Enhanced Property Value Prediction"_.
 
 ![](images/graph.png)
 
@@ -63,7 +69,13 @@ pip install -r requirements.txt
 
 ## Getting Started
 
-### 1. Run experiments from Jupyter Notebook
+### 1. Run in Google Colab
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main.ipynb)
+
+Click the button above to open and run the notebook directly in Google Colab.
+
+### 2. Run experiments from Jupyter Notebook
 
 Open `main.ipynb` and execute the cells to:
 
@@ -71,7 +83,7 @@ Open `main.ipynb` and execute the cells to:
 - Save Excel result tables
 - Generate comparison plots (\$R^2\$ and RMSE)
 
-### 2. Run experiments from command line
+### 3. Run experiments from command line
 
 Example usage:
 
@@ -104,7 +116,7 @@ If you use this repository in your research, please cite:
 
 ```
 @article{House2Vec2025,
-  title={Beyond Coordinates: Incorporating Graph Embeddings into Property Value Prediction Models},
+  title={Incorporating Graph Embeddings for Enhanced Property Value Prediction},
   author={Amintoosi, Mahmood and Ashkezari-Toussi, Soheila},
   year={2025},
   note={pre-print}
