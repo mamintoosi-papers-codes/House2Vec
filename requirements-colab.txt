@@ -1,4 +1,4 @@
-networkx==2.8.4
+networkx==3.4.2
 gensim
 geopy
 tqdm
