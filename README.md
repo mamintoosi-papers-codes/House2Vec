@@ -2,7 +2,7 @@
  [![GitHub forks](https://img.shields.io/github/forks/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/network)
 [![GitHub issues](https://img.shields.io/github/issues/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/issues)
 [![GitHub license](https://img.shields.io/github/license/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/blob/main/LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main-colab.ipynb)
 
 # House2Vec
 
@@ -70,7 +70,7 @@ pip install -r requirements.txt
 ## Getting Started
 
 ### 1. Run in Google Colab
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main-colab.ipynb)
 
 Click the button above to open and run the notebook directly in Google Colab.
 
