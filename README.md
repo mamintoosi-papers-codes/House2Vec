@@ -70,10 +70,11 @@ pip install -r requirements.txt
 ## Getting Started
 
 ### 1. Run in Google Colab
-
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main.ipynb)
 
 Click the button above to open and run the notebook directly in Google Colab.
+
+**Important:** After installing the requirements, **restart the runtime** (Runtime → Restart runtime) and then **run the notebook cells again**.
 
 ### 2. Run experiments from Jupyter Notebook
 
