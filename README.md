@@ -1,10 +1,16 @@
+[![repo size](https://img.shields.io/github/repo-size/mamintoosi-papers-codes/House2Vec.svg)](https://github.com/mamintoosi-papers-codes/House2Vec/archive/master.zip)
+ [![GitHub forks](https://img.shields.io/github/forks/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/network)
+[![GitHub issues](https://img.shields.io/github/issues/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/issues)
+[![GitHub license](https://img.shields.io/github/license/mamintoosi-papers-codes/House2Vec)](https://github.com/mamintoosi-papers-codes/House2Vec/blob/main/LICENSE)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main-colab.ipynb)
+
 # House2Vec
 
-House2Vec is a Python repository for **house representation learning** using **graph-based embedding methods** (DeepWalk and Node2Vec).  
-The goal is to enhance **house price prediction** by capturing **spatial relationships** among properties through network representation learning.
+House2Vec is a Python repository for **property representation learning** using **graph-based embedding methods** (DeepWalk and Node2Vec).  
+The goal is to enhance **property value prediction** by capturing **spatial dependencies** among properties through network representation learning.
 
-The repository implements and extends the work from the paper:  
-_"Beyond Coordinates: Integrating Graph Embeddings in House Price Prediction Models"_.
+The repository implements the following paper:  
+_"Incorporating Graph Embeddings for Enhanced Property Value Prediction"_.
 
 ![](images/graph.png)
 
@@ -12,18 +18,17 @@ _"Beyond Coordinates: Integrating Graph Embeddings in House Price Prediction Mod
 
 ## Abstract
 
-Traditional house price prediction models often rely on tabular features (area, rooms, age, etc.) and use latitude/longitude only as raw spatial features. Such approaches fail to capture the **structural relationships** between neighboring houses.
+Traditional property valuation models often rely on tabular features (area, rooms, age, etc.) and use latitude/longitude only as raw spatial variables. Such approaches may overlook the **structural relationships** between neighboring properties.
 
-In this work, we build a **spatial graph of houses**, connecting properties that lie within a predefined geographical threshold. Using this graph, we train **graph embeddings** with both **DeepWalk** and **Node2Vec**. These embeddings encode higher-order spatial proximity into dense vectors, which are then combined with conventional house features.
+In this work, we construct a **proximity graph of properties**, where nodes represent properties and edges connect geographically close neighbors. Using this graph, we train **graph embeddings** with both **DeepWalk** and **Node2Vec**. These embeddings encode higher-order spatial proximity into dense vectors, which are then combined with conventional property attributes.
 
-We evaluate three regression models (**Random Forest, Linear Regression, Gradient Boosting**) across two real-world datasets (California Housing, Mashhad Housing). Results show that:
+We evaluate ensemble regression models (Random Forest, Gradient Boosting) on two real-world datasets (California Housing and Mashhad Housing). Results show that:
 
-- Graph embeddings **significantly improve predictive performance** compared to raw features.
-- For **California**, Node2Vec embeddings outperform both DeepWalk and raw features.
-- For **Mashhad**, DeepWalk embeddings show the strongest improvements.
-- Gradient Boosting and Random Forest benefit the most from the enriched feature space, while Linear Regression sees only marginal gains.
+- Graph embeddings can provide **useful complementary features** to standard tabular data.
+- In the California dataset, Node2Vec embeddings show the strongest improvement.
+- In the Mashhad dataset, DeepWalk embeddings provide the most benefit.
 
-This demonstrates the flexibility of graph-based embeddings for **geospatial feature engineering**, offering more robust house price prediction models.
+This demonstrates the potential of graph-based embeddings for **geospatial feature engineering** in property valuation tasks.
 
 ![](images/proposedModel.png)
 
@@ -33,13 +38,13 @@ This demonstrates the flexibility of graph-based embeddings for **geospatial fea
 
 ![](images/results.png)
 
-> Grouped bar charts showing the performance of regression models (R² and RMSE) with Raw features, DeepWalk embeddings, and Node2Vec embeddings.
+> Grouped bar charts showing the performance of regression models ($R^2$ and RMSE) with raw features, DeepWalk embeddings, and Node2Vec embeddings.
 
 Our experiments highlight that:
 
-- **Node2Vec** yields the best results in the California dataset (CA).
-- **DeepWalk** yields the best results in the Mashhad dataset (MHD).
-- In both datasets, graph embeddings **outperform raw baseline features** in terms of higher R² and lower prediction errors.
+- **Node2Vec** yields the best results on the California dataset (CA).
+- **DeepWalk** yields the best results on the Mashhad dataset (MHD).
+- In both datasets, at least one graph-embedding approach outperforms raw baseline features.
 
 ---
 
@@ -64,15 +69,22 @@ pip install -r requirements.txt
 
 ## Getting Started
 
-### 1. Run experiments from Jupyter Notebook
+### 1. Run in Google Colab
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mamintoosi-papers-codes/House2Vec/blob/main/main-colab.ipynb)
+
+Click the button above to open and run the notebook directly in Google Colab.
+
+**Important:** After installing the requirements, **restart the runtime** (Runtime → Restart runtime) and then **run the notebook cells again**.
+
+### 2. Run experiments from Jupyter Notebook
 
 Open `main.ipynb` and execute the cells to:
 
 - Run experiments for both datasets
 - Save Excel result tables
-- Generate comparison plots (R² and MSE/Log-MSE)
+- Generate comparison plots (\$R^2\$ and RMSE)
 
-### 2. Run experiments from command line
+### 3. Run experiments from command line
 
 Example usage:
 
@@ -81,7 +93,7 @@ python main_hpp.py --dataset CA --embedding_sizes 2 5 10 20
 python main_hpp.py --dataset MHD --embedding_sizes 2 5 10 20
 ```
 
-This performs grid search over embedding sizes, selects the best size, and evaluates models with Raw, DeepWalk, and Node2Vec embeddings.
+This performs grid search over embedding sizes, selects the best configuration, and evaluates models with raw features, DeepWalk, and Node2Vec embeddings.
 Results (Excel + plots) are saved in `results/<dataset_name>/`.
 
 ---
@@ -105,7 +117,7 @@ If you use this repository in your research, please cite:
 
 ```
 @article{House2Vec2025,
-  title={Beyond Coordinates: Integrating Graph Embeddings in House Price Prediction Models},
+  title={Incorporating Graph Embeddings for Enhanced Property Value Prediction},
   author={Amintoosi, Mahmood and Ashkezari-Toussi, Soheila},
   year={2025},
   note={pre-print}
