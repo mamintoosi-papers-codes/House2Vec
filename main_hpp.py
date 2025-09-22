@@ -107,7 +107,7 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], num_walks=
     df_results = pd.DataFrame(results, columns=columns)
     out_file = f"results/{dataset_name}/final_results.csv"
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    df_results.to_csv(out_file, index=False)
+    df_results.to_csv(out_file, index=False, float_format='%.4f')
     print(f"Saved results to {out_file}")
 
     return df_results

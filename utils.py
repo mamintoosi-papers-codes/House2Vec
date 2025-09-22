@@ -165,7 +165,7 @@ def create_word2vec_model(walks, vector_size):
     """Train Word2Vec on walks."""
     model = Word2Vec(
         walks,
-        hs=1,
+        # hs=1,
         sg=1,
         vector_size=vector_size,
         window=5,
