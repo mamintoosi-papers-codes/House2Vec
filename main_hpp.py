@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 from utils import (
     load_dataset,
@@ -104,10 +105,14 @@ def run_experiments(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], num_walks=
     # -----------------------------
     # Save results to CSV
     # -----------------------------
+
     df_results = pd.DataFrame(results, columns=columns)
+    numeric_cols = df_results.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        df_results[col] = df_results[col].apply(lambda x: int(x) if pd.notna(x) and x == int(x) else round(x, 4) if pd.notna(x) else x)
     out_file = f"results/{dataset_name}/final_results.csv"
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    df_results.to_csv(out_file, index=False, float_format='%.4f')
+    df_results.to_csv(out_file, index=False)
     print(f"Saved results to {out_file}")
 
     return df_results

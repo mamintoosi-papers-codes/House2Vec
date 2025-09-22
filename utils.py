@@ -55,8 +55,8 @@ def load_dataset(dataset_name: str):
         # df['id'] = df.index  # Add this line to create a unique identifier for each house
 
         df = pd.read_excel('data/MHD-housing.xlsx')
-        shuffle_indices = np.random.choice(np.arange(df.shape[0]), size=20000, replace=False,)
-        df = df.iloc[shuffle_indices].reset_index(drop=True)
+        # shuffle_indices = np.random.choice(np.arange(df.shape[0]), size=20000, replace=False,)
+        # df = df.iloc[shuffle_indices].reset_index(drop=True)
         df = df.dropna().reset_index(drop=True)
         
         df['id'] = df.index
@@ -84,7 +84,7 @@ def create_graph_from_dataframe(
     k=10,
     scale_numeric=True,
     metric="euclidean",
-    use_edge_weights=True
+    use_edge_weights=False
 ):
     """
     KNN-based graph construction for housing datasets.
@@ -322,7 +322,7 @@ def grid_search_embedding_size(df, G, embedding_sizes, method="deepwalk",
     print(f"[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
 
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    results_df.to_excel(f"results/{dataset_name}/{method}_embedding_size_results.xlsx", index=False)
+    results_df.to_csv(f"results/{dataset_name}/{method}_embedding_size_results.csv", index=False)
 
     plt.figure(figsize=(10, 6))
     plt.plot(results_df['Embedding Size'], results_df[score_name], marker='o')
