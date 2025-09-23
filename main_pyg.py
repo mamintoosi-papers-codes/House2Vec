@@ -16,7 +16,7 @@ from utils_pyg import (
     create_pyg_graph_from_dataframe,
     fit_and_evaluate,
     grid_search_embedding_size_pyg,
-    graph_report
+    compare_models
 )
 
 
@@ -142,6 +142,10 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     print(f"Saved results to {out_file}")
     print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
     print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
+
+    compare_models(dataset_name, 'R2')
+    compare_models(dataset_name, 'RMSE')
+    compare_models(dataset_name, 'MSE_log')
 
     return df_results, timing_df
 

@@ -404,18 +404,20 @@ def graph_report(G):
     print(f"Maximum number of neighbors: {max_neighbors}")  
     print(f"Average number of neighbors: {avg_neighbors:.2f}")
 
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FuncFormatter
 import os
 
-def compare_models(dataset_name, use_rmse=False, res_file_name="final_results.csv"):
+def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv"):
     """
-    Side-by-side comparison plots (R² and MSE_log or RMSE) for a dataset.
-    - For Node2Vec, uses the best configuration (highest R²) for each BaseModel
+    Single plot for selected metric comparison.
+    - For each BaseModel and Method category, selects the best configuration based on the specified metric
+    - For RMSE/MSE_log: lower is better (minimize)
+    - For R2: higher is better (maximize)
     - Highlights the single best model across all methods with a red star.
+    - Only saves the plot, does not display it.
     """
     # Load results
     file_path = f"results-gpu/{dataset_name}/{res_file_name}"
@@ -432,7 +434,17 @@ def compare_models(dataset_name, use_rmse=False, res_file_name="final_results.cs
 
     df["Method_Category"] = df["Method"].apply(categorize)
 
-    # For each BaseModel and Method category, select the best configuration (max R²)
+    # Determine optimization direction
+    if metric in ['RMSE', 'MSE_log']:
+        # Lower is better
+        optimization_func = lambda x: x.idxmin()
+        best_func = np.nanargmin
+    else:  # R2
+        # Higher is better  
+        optimization_func = lambda x: x.idxmax()
+        best_func = np.nanargmax
+
+    # For each BaseModel and Method category, select the best configuration based on the specified metric
     best_configs = []
     
     for base_model in df["BaseModel"].unique():
@@ -444,135 +456,94 @@ def compare_models(dataset_name, use_rmse=False, res_file_name="final_results.cs
                     # For Raw, there's only one configuration
                     best_row = subset.iloc[0]
                 else:
-                    # For DeepWalk and Node2Vec, select the one with highest R²
-                    best_row = subset.loc[subset["R2"].idxmax()]
+                    # For DeepWalk and Node2Vec, select the best based on the specified metric
+                    best_idx = optimization_func(subset[metric])
+                    best_row = subset.loc[best_idx]
                 
                 best_configs.append(best_row)
 
     # Create DataFrame with best configurations
     best_df = pd.DataFrame(best_configs)
 
-    # Pivot tables using best configurations
+    # Pivot table using best configurations
     order_types = ["Raw", "DeepWalk", "Node2Vec"]
-    r2_pivot = best_df.pivot_table(index="BaseModel", columns="Method_Category", values="R2", aggfunc="mean").reindex(columns=order_types)
-    
-    if use_rmse:
-        metric_pivot = best_df.pivot_table(index="BaseModel", columns="Method_Category", values="RMSE", aggfunc="mean").reindex(columns=order_types)
-        metric_name = "RMSE"
-    else:
-        metric_pivot = best_df.pivot_table(index="BaseModel", columns="Method_Category", values="MSE_log", aggfunc="mean").reindex(columns=order_types)
-        metric_name = "MSE (log-scale)"
+    metric_pivot = best_df.pivot_table(index="BaseModel", columns="Method_Category", values=metric, aggfunc="mean").reindex(columns=order_types)
 
     # Base models for x-axis
-    models = r2_pivot.index.tolist()
+    models = metric_pivot.index.tolist()
     x = np.arange(len(models))
     bar_width = 0.25
 
-    fig, axs = plt.subplots(1, 2, figsize=(14, 6))
+    # Create single plot
+    fig, ax = plt.subplots(figsize=(10, 6))
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
 
     # -------------------------------
-    # Plot 1: R² comparison
+    # Single plot: Selected metric comparison
     # -------------------------------
-    all_r2_bars = []
-    bar_positions = []
-    
-    for i, method_type in enumerate(order_types):
-        if method_type in r2_pivot.columns:
-            vals = r2_pivot[method_type].values
-            positions = x + i * bar_width - bar_width
-            axs[0].bar(positions, vals, width=bar_width, label=method_type, color=colors[i], alpha=0.8)
-            all_r2_bars.extend(vals)
-            bar_positions.extend(positions)
-
-    # Highlight single best R² (max) across all methods
-    if all_r2_bars:
-        best_idx = np.nanargmax(all_r2_bars)
-        axs[0].scatter(bar_positions[best_idx], all_r2_bars[best_idx],
-                       color="red", zorder=5, s=150, marker="*", label="Best Overall")
-
-    axs[0].set_title("R² Score Comparison (Best Configurations)")
-    axs[0].set_xticks(x)
-    axs[0].set_xticklabels(models)
-    axs[0].set_ylabel("R²")
-    axs[0].legend()
-    axs[0].grid(True, alpha=0.3, axis='y')
-
-    # Set y-axis limits to emphasize differences
-    if all_r2_bars:
-        r2_min, r2_max = np.nanmin(all_r2_bars), np.nanmax(all_r2_bars)
-        axs[0].set_ylim(max(0, r2_min - 0.05), min(1, r2_max + 0.05))
-
-    # Add dataset name
-    axs[0].text(0.02, 0.98, f"Dataset: {dataset_name}", transform=axs[0].transAxes,
-                fontsize=12, ha="left", va="top",
-                bbox=dict(boxstyle="round", fc="white", alpha=0.8))
-
-    # -------------------------------
-    # Plot 2: RMSE or MSE_log comparison
-    # -------------------------------
-    
     all_metric_bars = []
-    bar_positions_metric = []
+    bar_positions = []
     
     for i, method_type in enumerate(order_types):
         if method_type in metric_pivot.columns:
             vals = metric_pivot[method_type].values
             positions = x + i * bar_width - bar_width
-            axs[1].bar(positions, vals, width=bar_width, label=method_type, color=colors[i], alpha=0.8)
+            ax.bar(positions, vals, width=bar_width, label=method_type, color=colors[i], alpha=0.8)
             all_metric_bars.extend(vals)
-            bar_positions_metric.extend(positions)
+            bar_positions.extend(positions)
 
-    # Highlight single best (min) for RMSE or MSE_log
+    # Highlight single best based on metric
     if all_metric_bars:
-        best_idx = np.nanargmin(all_metric_bars)
-        axs[1].scatter(bar_positions_metric[best_idx], all_metric_bars[best_idx],
-                       color="red", zorder=5, s=150, marker="*", label="Best Overall")
+        best_idx = best_func(all_metric_bars)
+        ax.scatter(bar_positions[best_idx], all_metric_bars[best_idx],
+                   color="red", zorder=5, s=150, marker="*", label="Best Overall")
 
-    axs[1].set_title(f"{metric_name} Comparison (Best Configurations)")
-    axs[1].set_xticks(x)
-    axs[1].set_xticklabels(models)
-    axs[1].set_ylabel(metric_name)
-    axs[1].legend()
-    axs[1].grid(True, alpha=0.3, axis='y')
+    # Set title and labels based on metric
+    if metric == 'R2':
+        title = f"R² Score Comparison - {dataset_name}"
+        ylabel = "R²"
+    else:
+        title = f"{metric} Comparison - {dataset_name}"
+        ylabel = metric
+
+    ax.set_title(title, fontsize=14, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(models, fontsize=11)
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3, axis='y')
 
     # Set y-axis limits
     if all_metric_bars:
         metric_min, metric_max = np.nanmin(all_metric_bars), np.nanmax(all_metric_bars)
-        axs[1].set_ylim(metric_min * 0.9, metric_max * 1.1)
+        if metric == 'R2':
+            ax.set_ylim(max(0, metric_min - 0.05), min(1, metric_max + 0.05))
+        else:
+            ax.set_ylim(metric_min * 0.9, metric_max * 1.1)
 
-    # Add value labels on bars
+    # Add value labels on bars with scientific notation
     for i, method_type in enumerate(order_types):
-        if method_type in r2_pivot.columns:
-            vals = r2_pivot[method_type].values
-            positions = x + i * bar_width - bar_width
-            for pos, val in zip(positions, vals):
-                if not np.isnan(val):
-                    axs[0].text(pos, val + 0.01, f'{val:4.3e}', ha='center', va='bottom', fontsize=9)
-
         if method_type in metric_pivot.columns:
             vals = metric_pivot[method_type].values
             positions = x + i * bar_width - bar_width
             for pos, val in zip(positions, vals):
                 if not np.isnan(val):
-                    axs[1].text(pos, val * 1.01, f'{val:4.3e}', ha='center', va='bottom', fontsize=9)
-
-    # Add dataset name
-    axs[1].text(0.02, 0.98, f"Dataset: {dataset_name}", transform=axs[1].transAxes,
-                fontsize=12, ha="left", va="top",
-                bbox=dict(boxstyle="round", fc="white", alpha=0.8))
+                    # Use scientific notation for large/small numbers
+                    if abs(val) >= 1000 or (abs(val) <= 0.01 and val != 0):
+                        ax.text(pos, val * 1.01, f'{val:.2e}', ha='center', va='bottom', fontsize=9)
+                    else:
+                        ax.text(pos, val * 1.01, f'{val:.3f}', ha='center', va='bottom', fontsize=9)
 
     plt.tight_layout()
 
-    # Save figure
-    suffix = "_rmse" if use_rmse else ""
-    out_path = f"results-gpu/{dataset_name}/model_comparison_best_configs{suffix}.png"
+    # Save figure (without displaying)
+    out_path = f"results-gpu/{dataset_name}/best_{metric}_comparison.png"
     os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.close()  # Close the plot to prevent display
     
     print(f"Best configurations comparison plot saved to {out_path}")
-    print(f"Selected best configurations for each method:")
+    print(f"Selected best configurations for each method (based on {metric}):")
     
     # Print best configurations summary
     for base_model in best_df["BaseModel"].unique():
@@ -584,6 +555,18 @@ def compare_models(dataset_name, use_rmse=False, res_file_name="final_results.cs
                 if method_cat == "Node2Vec":
                     p_val = row["p"] if "p" in row and not pd.isna(row["p"]) else "N/A"
                     q_val = row["q"] if "q" in row and not pd.isna(row["q"]) else "N/A"
-                    print(f"  {method_cat}: p={p_val}, q={q_val}, R²={row['R2']:.4f}")
+                    print(f"  {method_cat}: p={p_val}, q={q_val}, {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
                 else:
-                    print(f"  {method_cat}: R²={row['R2']:.4f}")
+                    print(f"  {method_cat}: {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
+
+    return best_df
+
+# # Example usage
+# if __name__ == "__main__":
+#     # Example runs (plots will be saved but not displayed)
+#     compare_models("CA", 'RMSE')
+#     compare_models("MHD", 'RMSE')
+#     compare_models("CA", 'MSE_log') 
+#     compare_models("MHD", 'MSE_log')
+#     compare_models("CA", 'R2')
+#     compare_models("MHD", 'R2')
