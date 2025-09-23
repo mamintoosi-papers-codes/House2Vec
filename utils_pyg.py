@@ -14,6 +14,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import Node2Vec
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import time
 from scipy.spatial import cKDTree
 
 from sklearn.preprocessing import StandardScaler
@@ -64,7 +65,7 @@ def load_dataset(dataset_name: str):
 
 
 # -----------------------------
-# Graph construction (برای PyG)
+# Graph construction for PyG
 # -----------------------------
 def create_pyg_graph_from_dataframe(
     df,
@@ -122,24 +123,38 @@ def create_pyg_graph_from_dataframe(
 
 
 # -----------------------------
-# DeepWalk با PyG
+# Unified graph embeddings training function
 # -----------------------------
-def train_deepwalk_pyg(pyg_data, vector_size=16, walk_length=10, 
-                       context_size=5, walks_per_node=10, epochs=50):
+def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10, 
+                              context_size=5, walks_per_node=10, p=1.0, q=1.0, 
+                              epochs=50):
     """
-    Train DeepWalk embeddings using PyG's Node2Vec with p=q=1 (unbiased random walks).
+    Train graph embeddings using PyG's Node2Vec.
+    
+    Parameters:
+    - p, q: if both are 1.0, equivalent to DeepWalk
     """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Node2Vec with p=1, q=1 for DeepWalk-like behavior
+    # Determine method name based on parameters
+    if p == 1.0 and q == 1.0:
+        method_name = "DeepWalk"
+    else:
+        method_name = f"Node2Vec (p={p}, q={q})"
+    
+    print(f"Training {method_name} with vector_size={vector_size}")
+    
+    start_time = time.time()
+    
+    # Create model
     model = Node2Vec(
         pyg_data.edge_index,
         embedding_dim=vector_size,
         walk_length=walk_length,
         context_size=context_size,
         walks_per_node=walks_per_node,
-        p=1.0,  # Return parameter (1.0 for unbiased)
-        q=1.0,  # In-out parameter (1.0 for unbiased)
+        p=p,
+        q=q,
         num_negative_samples=1,
         sparse=True
     ).to(device)
@@ -147,7 +162,7 @@ def train_deepwalk_pyg(pyg_data, vector_size=16, walk_length=10,
     loader = model.loader(batch_size=128, shuffle=True, num_workers=0)
     optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.01)
     
-    # Training loop
+    # Training loop with tqdm
     def train():
         model.train()
         total_loss = 0
@@ -159,103 +174,48 @@ def train_deepwalk_pyg(pyg_data, vector_size=16, walk_length=10,
             total_loss += loss.item()
         return total_loss / len(loader)
     
-    for epoch in range(epochs):
-        loss = train()
-        if (epoch + 1) % 10 == 0:
-            print(f'DeepWalk Epoch: {epoch+1:03d}, Loss: {loss:.4f}')
+    # Use tqdm for progress tracking
+    losses = []
+    with tqdm(total=epochs, desc=f"{method_name} Training") as pbar:
+        for epoch in range(epochs):
+            loss = train()
+            losses.append(loss)
+            
+            # Update progress bar
+            pbar.set_postfix({
+                'Loss': f'{loss:.4f}',
+                'Best': f'{min(losses):.4f}' if losses else 'N/A'
+            })
+            pbar.update(1)
     
     # Get embeddings
     model.eval()
     with torch.no_grad():
         embeddings = model.embedding.weight.cpu().numpy()
     
-    return embeddings
+    training_time = time.time() - start_time
+    print(f"{method_name} training completed in {training_time:.2f} seconds")
+    
+    return embeddings, training_time, method_name
 
 
 # -----------------------------
-# Node2Vec با PyG
+# Unified pipeline for graph embeddings
 # -----------------------------
-def train_node2vec_pyg(pyg_data, vector_size=16, walk_length=10, 
-                       context_size=5, walks_per_node=10, p=1.0, q=1.0, epochs=50):
+def train_graph_embeddings_pipeline_pyg(pyg_data, df, vector_size=16, num_walks=40, 
+                                       walk_length=15, p=1.0, q=1.0, epochs=50):
     """
-    Train Node2Vec embeddings using PyG's Node2Vec.
+    Full pipeline for graph embeddings using PyG.
+    
+    Parameters:
+    - p, q: parameters for random walks (p=q=1 for DeepWalk)
     """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    model = Node2Vec(
-        pyg_data.edge_index,
-        embedding_dim=vector_size,
-        walk_length=walk_length,
-        context_size=context_size,
-        walks_per_node=walks_per_node,
-        p=p,    # Return parameter
-        q=q,    # In-out parameter
-        num_negative_samples=1,
-        sparse=True
-    ).to(device)
+    start_time = time.time()
     
-    loader = model.loader(batch_size=128, shuffle=True, num_workers=0)
-    optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.01)
-    
-    # Training loop
-    def train():
-        model.train()
-        total_loss = 0
-        for pos_rw, neg_rw in loader:
-            optimizer.zero_grad()
-            loss = model.loss(pos_rw.to(device), neg_rw.to(device))
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-        return total_loss / len(loader)
-    
-    for epoch in range(epochs):
-        loss = train()
-        if (epoch + 1) % 10 == 0:
-            print(f'Node2Vec Epoch: {epoch+1:03d}, Loss: {loss:.4f}')
-    
-    # Get embeddings
-    model.eval()
-    with torch.no_grad():
-        embeddings = model.embedding.weight.cpu().numpy()
-    
-    return embeddings
-
-
-# -----------------------------
-# توابع اصلی برای embeddings (با PyG)
-# -----------------------------
-def train_deepwalk_embeddings_pyg(pyg_data, df, vector_size=16, num_walks=40, 
-                                 walk_length=15, epochs=50):
-    """Full pipeline for DeepWalk embeddings using PyG."""
-    embeddings = train_deepwalk_pyg(
+    # Train embeddings
+    embeddings, emb_training_time, method_name = train_graph_embeddings_pyg(
         pyg_data, 
-        vector_size=vector_size,
-        walk_length=walk_length,
-        walks_per_node=num_walks,
-        epochs=epochs
-    )
-    
-    # Create embeddings DataFrame
-    emb_df = pd.DataFrame(
-        embeddings,
-        columns=[f"deepwalk_emb_{i}" for i in range(embeddings.shape[1])]
-    )
-    
-    # Combine with original features
-    feature_columns = [col for col in df.columns if col not in ['price', 'id']]
-    X_original = df[feature_columns]
-    X_combined = pd.concat([X_original.reset_index(drop=True), emb_df], axis=1)
-    y = df['price']
-    
-    return X_combined, y, emb_df
-
-
-def train_node2vec_embeddings_pyg(pyg_data, df, vector_size=16, num_walks=40, 
-                                 walk_length=15, p=1.0, q=1.0, epochs=50):
-    """Full pipeline for Node2Vec embeddings using PyG."""
-    embeddings = train_node2vec_pyg(
-        pyg_data,
         vector_size=vector_size,
         walk_length=walk_length,
         walks_per_node=num_walks,
@@ -264,10 +224,16 @@ def train_node2vec_embeddings_pyg(pyg_data, df, vector_size=16, num_walks=40,
         epochs=epochs
     )
     
+    # Determine prefix based on method
+    if p == 1.0 and q == 1.0:
+        prefix = "deepwalk"
+    else:
+        prefix = "node2vec"
+    
     # Create embeddings DataFrame
     emb_df = pd.DataFrame(
         embeddings,
-        columns=[f"node2vec_emb_{i}" for i in range(embeddings.shape[1])]
+        columns=[f"{prefix}_emb_{i}" for i in range(embeddings.shape[1])]
     )
     
     # Combine with original features
@@ -276,14 +242,19 @@ def train_node2vec_embeddings_pyg(pyg_data, df, vector_size=16, num_walks=40,
     X_combined = pd.concat([X_original.reset_index(drop=True), emb_df], axis=1)
     y = df['price']
     
-    return X_combined, y, emb_df
+    total_time = time.time() - start_time
+    print(f"Full pipeline completed in {total_time:.2f} seconds")
+    
+    return X_combined, y, emb_df, emb_training_time, total_time
 
 
 # -----------------------------
-# Regression & evaluation (بدون تغییر)
+# Regression & evaluation with timing
 # -----------------------------
 def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, verbose=True):
     """Train regression model and evaluate with multiple metrics."""
+    start_time = time.time()
+    
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
@@ -300,9 +271,12 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
         mse_log = np.nan   # in case log fails
 
     acc = np.mean(np.abs(y_test - y_pred) <= 0.2 * y_test)
+    
+    training_time = time.time() - start_time
 
     if verbose:
         print(f"R2: {r2:.3f}, MAPE: {mape:.3f}, RMSE: {rmse:.3f}, Acc: {acc:.3f}")
+        print(f"Regression training time: {training_time:.2f} seconds")
 
     if filename:
         plt.scatter(y_test, y_pred, alpha=0.5)
@@ -311,39 +285,44 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
         plt.savefig(filename)
         plt.close()
 
-    return r2, mape, acc, rmse, mse_log
+    return r2, mape, acc, rmse, mse_log, training_time
 
 
 # -----------------------------
-# Grid Search for embedding size (با PyG)
+# Grid Search for embedding size with timing
 # -----------------------------
 def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwalk",
                                  score_name="r2", random_state=42, dataset_name="CA",
-                                 num_walks=60, walk_length=15, p=3, q=1, epochs=30):
+                                 num_walks=60, walk_length=15, p=1.0, q=1.0, epochs=30):
     """Perform grid search for embedding size using PyG."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
     best_params, best_X, best_y = None, None, None
     results = []
+    timing_results = []
 
-    for vector_size in embedding_sizes:
-        print(f"[{method}] Evaluating embedding size: {vector_size}")
+    # Set parameters based on method
+    if method == "deepwalk":
+        p_val, q_val = 1.0, 1.0
+    else:  # node2vec
+        p_val, q_val = p, q
 
-        if method == "deepwalk":
-            X, y, _ = train_deepwalk_embeddings_pyg(
-                pyg_data, df, vector_size, num_walks=num_walks, 
-                walk_length=walk_length, epochs=epochs
-            )
-        elif method == "node2vec":
-            X, y, _ = train_node2vec_embeddings_pyg(
-                pyg_data, df, vector_size, num_walks=num_walks, 
-                walk_length=walk_length, p=p, q=q, epochs=epochs
-            )
-        else:
-            raise ValueError("Unknown method")
+    # Progress bar for grid search
+    pbar_embedding = tqdm(embedding_sizes, desc=f"{method.upper()} Grid Search")
+    
+    for vector_size in pbar_embedding:
+        pbar_embedding.set_postfix({'Testing': f'vec_size={vector_size}'})
+        
+        # Train embeddings with timing
+        X, y, _, emb_time, total_time = train_graph_embeddings_pipeline_pyg(
+            pyg_data, df, vector_size=vector_size, 
+            num_walks=num_walks, walk_length=walk_length, 
+            p=p_val, q=q_val, epochs=epochs
+        )
 
         X_train, _, y_train, _ = train_test_split(X, y, test_size=0.1, random_state=random_state)
         kf = KFold(n_splits=5, shuffle=True, random_state=random_state)
         scores = []
+        reg_times = []
 
         for tr_idx, val_idx in kf.split(X_train):
             X_tr, X_val = X_train.iloc[tr_idx], X_train.iloc[val_idx]
@@ -352,14 +331,17 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwa
             model = RandomForestRegressor(random_state=random_state)
             
             if score_name == 'rmse':
-                _, _, _, score, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
+                _, _, _, score, _, reg_time = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
             else: # r2
-                score, _, _, _, _ = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
+                score, _, _, _, _, reg_time = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
             
             scores.append(score)
+            reg_times.append(reg_time)
 
         mean_score = np.mean(scores)
+        mean_reg_time = np.mean(reg_times)
         results.append((vector_size, mean_score))
+        timing_results.append((vector_size, emb_time, total_time, mean_reg_time))
 
         # Update best score and parameters
         if score_name == 'rmse':
@@ -370,26 +352,36 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwa
         if condition:
             best_score, best_params, best_X, best_y = mean_score, vector_size, X, y
 
-    results_df = pd.DataFrame(results, columns=['Embedding Size', score_name])
-    print(f"[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
+    # Save results to results-gpu folder
+    os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
+    
+    # Save main results
+    results_df = pd.DataFrame(results, columns=['Embedding_Size', score_name])
+    results_df.to_csv(f"results-gpu/{dataset_name}/{method}_embedding_size_results.csv", index=False)
 
-    os.makedirs(f"results/{dataset_name}", exist_ok=True)
-    results_df.to_csv(f"results/{dataset_name}/{method}_embedding_size_results_pyg.csv", index=False)
+    # Save timing results
+    timing_df = pd.DataFrame(timing_results, 
+                           columns=['Embedding_Size', 'Embedding_Time', 'Total_Pipeline_Time', 'Regression_Time'])
+    timing_df.to_csv(f"results-gpu/{dataset_name}/{method}_timing_results.csv", index=False)
 
+    # Plot results
     plt.figure(figsize=(10, 6))
-    plt.plot(results_df['Embedding Size'], results_df[score_name], marker='o')
+    plt.plot(results_df['Embedding_Size'], results_df[score_name], marker='o')
     plt.scatter(best_params, best_score, color='red')
     plt.title(f"{method.upper()} (PyG) - Embedding Size vs {score_name.upper()}")
     plt.xlabel("Embedding Size")
     plt.ylabel(score_name.upper())
     plt.grid(True)
-    plt.savefig(f"results/{dataset_name}/{method}_embedding_size_plot_pyg.png")
+    plt.savefig(f"results-gpu/{dataset_name}/{method}_embedding_size_plot.png")
     plt.close()
 
-    return best_params, best_X, best_y, results_df
+    print(f"\n[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
+
+    return best_params, best_X, best_y, results_df, timing_df
 
 
 def graph_report(G):
+    """Generate basic graph statistics report."""
     num_nodes = G.number_of_nodes()  
     num_edges = G.number_of_edges()  
     degrees = [len(list(G.neighbors(node))) for node in G.nodes]
