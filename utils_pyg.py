@@ -54,7 +54,7 @@ def load_dataset(dataset_name: str):
         # filtered_data = data[(data['longitude'] >= 59.4) & (data['longitude'] <= 59.7) &
         #                     (data['latitude'] >= 36.2) & (data['latitude'] <= 36.45)]
         np.random.seed(42)
-        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=2000, replace=False,)
+        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=10000, replace=False,)
         df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
 
         df = df.dropna().reset_index(drop=True)
