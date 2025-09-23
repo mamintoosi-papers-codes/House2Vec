@@ -43,11 +43,20 @@ def load_dataset(dataset_name: str):
         ]
         binary_features = ['ocean_proximity_INLAND', 'ocean_proximity_ISLAND',
        'ocean_proximity_NEAR BAY', 'ocean_proximity_NEAR OCEAN']
-        threshold = 4000   # meters
+        # threshold = 4000   # meters
         return df, numeric_features, binary_features
 
     elif dataset_name == "MHD":
-        df = pd.read_excel('data/MHD-housing.xlsx')
+        data= pd.read_excel('data/MHD-housing.xlsx')
+
+        filtered_data = data.copy()
+        # Filter the data for the specified region
+        # filtered_data = data[(data['longitude'] >= 59.4) & (data['longitude'] <= 59.7) &
+        #                     (data['latitude'] >= 36.2) & (data['latitude'] <= 36.45)]
+        np.random.seed(42)
+        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=2000, replace=False,)
+        df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
+
         df = df.dropna().reset_index(drop=True)
         df['id'] = df.index
 
@@ -57,7 +66,7 @@ def load_dataset(dataset_name: str):
         ]
         binary_features = ['elevator', 'parking', 'storage', 'balcony', 'parquet',   
                     'ceramic_flooring', 'stone_façade', 'garden', 'renovated'] 
-        threshold = 40   # meters
+        # threshold = 40   # meters
         return df, numeric_features, binary_features
 
     else:
@@ -287,11 +296,10 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
 
     return r2, mape, acc, rmse, mse_log, training_time
 
-
 # -----------------------------
 # Grid Search for embedding size with timing
 # -----------------------------
-def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwalk",
+def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2vec",
                                  score_name="r2", random_state=42, dataset_name="CA",
                                  num_walks=60, walk_length=15, p=1.0, q=1.0, epochs=30):
     """Perform grid search for embedding size using PyG."""
@@ -300,14 +308,14 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwa
     results = []
     timing_results = []
 
-    # Set parameters based on method
-    if method == "deepwalk":
-        p_val, q_val = 1.0, 1.0
-    else:  # node2vec
-        p_val, q_val = p, q
+    # Determine method name for display
+    if p == 1.0 and q == 1.0:
+        method_name = "DeepWalk"
+    else:
+        method_name = f"Node2Vec (p={p}, q={q})"
 
     # Progress bar for grid search
-    pbar_embedding = tqdm(embedding_sizes, desc=f"{method.upper()} Grid Search")
+    pbar_embedding = tqdm(embedding_sizes, desc=f"{method_name} Grid Search")
     
     for vector_size in pbar_embedding:
         pbar_embedding.set_postfix({'Testing': f'vec_size={vector_size}'})
@@ -316,7 +324,7 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwa
         X, y, _, emb_time, total_time = train_graph_embeddings_pipeline_pyg(
             pyg_data, df, vector_size=vector_size, 
             num_walks=num_walks, walk_length=walk_length, 
-            p=p_val, q=q_val, epochs=epochs
+            p=p, q=q, epochs=epochs
         )
 
         X_train, _, y_train, _ = train_test_split(X, y, test_size=0.1, random_state=random_state)
@@ -357,28 +365,27 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="deepwa
     
     # Save main results
     results_df = pd.DataFrame(results, columns=['Embedding_Size', score_name])
-    results_df.to_csv(f"results-gpu/{dataset_name}/{method}_embedding_size_results.csv", index=False)
+    results_df.to_csv(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_embedding_size_results.csv", index=False)
 
     # Save timing results
     timing_df = pd.DataFrame(timing_results, 
                            columns=['Embedding_Size', 'Embedding_Time', 'Total_Pipeline_Time', 'Regression_Time'])
-    timing_df.to_csv(f"results-gpu/{dataset_name}/{method}_timing_results.csv", index=False)
+    timing_df.to_csv(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_timing_results.csv", index=False)
 
     # Plot results
     plt.figure(figsize=(10, 6))
     plt.plot(results_df['Embedding_Size'], results_df[score_name], marker='o')
     plt.scatter(best_params, best_score, color='red')
-    plt.title(f"{method.upper()} (PyG) - Embedding Size vs {score_name.upper()}")
+    plt.title(f"{method_name} - Embedding Size vs {score_name.upper()}")
     plt.xlabel("Embedding Size")
     plt.ylabel(score_name.upper())
     plt.grid(True)
-    plt.savefig(f"results-gpu/{dataset_name}/{method}_embedding_size_plot.png")
+    plt.savefig(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_embedding_size_plot.png")
     plt.close()
 
-    print(f"\n[{method}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
+    print(f"\n[{method_name}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
 
     return best_params, best_X, best_y, results_df, timing_df
-
 
 def graph_report(G):
     """Generate basic graph statistics report."""

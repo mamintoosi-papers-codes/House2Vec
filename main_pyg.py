@@ -7,9 +7,9 @@ import argparse
 import os
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import numpy as np
+import time
 
 from utils_pyg import (
     load_dataset,
@@ -22,28 +22,37 @@ from utils_pyg import (
 
 def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], 
                        num_walks=80, walk_length=10, p=3, q=1, epochs=30):
+    """Run complete experiments with timing tracking."""
+    
+    experiment_start_time = time.time()
+    
     # -----------------------------
     # Load dataset & build PyG graph
     # -----------------------------
+    print(f"Loading dataset: {dataset_name}")
     df, numeric_features, binary_features = load_dataset(dataset_name)
     
-    # Create PyG graph instead of NetworkX
+    graph_start_time = time.time()
     pyg_data = create_pyg_graph_from_dataframe(
         df, numeric_features, binary_features
     )
-    
+    graph_time = time.time() - graph_start_time
+    print(f"Graph construction completed in {graph_time:.2f} seconds")
     print(f"PyG Graph: {pyg_data.num_nodes} nodes, {pyg_data.edge_index.shape[1]} edges")
 
+    # Results columns with timing information
     columns = [
-        "BaseModel", "Method", "EmbeddingDim",
-        "NumWalks", "WalkLength", "p", "q",
-        "R2", "MAPE", "ACC", "RMSE", "MSE_log"
+        "BaseModel", "Method", "EmbeddingDim", "NumWalks", "WalkLength", "p", "q",
+        "R2", "MAPE", "ACC", "RMSE", "MSE_log", 
+        "Embedding_Time", "Regression_Time", "Total_Time"
     ]
     results = []
+    overall_timing = {"graph_construction": graph_time}
 
     # -----------------------------
     # Baseline (raw features only)
     # -----------------------------
+    print("\n=== Running Baseline Models ===")
     X_base = df.drop(['price', 'id'], axis=1)
     y = df['price']
     X_train_base, X_test_base, y_train, y_test = train_test_split(
@@ -54,77 +63,87 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
         ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
         ("RandomForest", RandomForestRegressor(random_state=42)),
     ]:
+        baseline_start = time.time()
         metrics = fit_and_evaluate(model, X_train_base, y_train, X_test_base, y_test, verbose=False)
+        baseline_time = time.time() - baseline_start
+        
         results.append([
-            model_name, "Raw",
-            None, None, None, None, None,   # EmbeddingDim, NumWalks, WalkLength, p, q
-            *metrics
+            model_name, "Raw", None, None, None, None, None,
+            *metrics[:-1], 0, metrics[-1], baseline_time  # No embedding time for baseline
         ])
 
     # -----------------------------
-    # DeepWalk with grid search (PyG)
+    # Node2Vec grid search (includes DeepWalk when p=q=1)
     # -----------------------------
-    best_dw_size, X_dw, y_dw, _ = grid_search_embedding_size_pyg(
-        pyg_data, df, embedding_sizes, method="deepwalk", dataset_name=dataset_name,
-        num_walks=num_walks, walk_length=walk_length, epochs=epochs
-    )
+    print("\n=== Running Node2Vec Grid Search (includes DeepWalk) ===")
     
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_dw, y_dw, test_size=0.1, random_state=42
-    )
-    
-    for model_name, model in [
-        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-        ("RandomForest", RandomForestRegressor(random_state=42)),
-    ]:
-        metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
-        results.append([
-            model_name, "DeepWalk",
-            best_dw_size, num_walks, walk_length,
-            None, None,   # p, q
-            *metrics
-        ])
-
-    # -----------------------------
-    # Node2Vec with grid search (PyG)
-    # -----------------------------
+    # Test all combinations of p and q (p=q=1 represents DeepWalk)
     for ip in range(1, p+1):
         for iq in range(1, q+1):
-            best_n2v_size, X_n2v, y_n2v, _ = grid_search_embedding_size_pyg(
+            # Determine method name based on parameters
+            if ip == 1 and iq == 1:
+                method_display_name = "DeepWalk"
+            else:
+                method_display_name = f"Node2Vec (p={ip}, q={iq})"
+            
+            print(f"\n--- Testing {method_display_name} ---")
+            
+            n2v_start_time = time.time()
+            best_size, X_emb, y_emb, emb_results, timing_info = grid_search_embedding_size_pyg(
                 pyg_data, df, embedding_sizes, method="node2vec", dataset_name=dataset_name,
                 num_walks=num_walks, walk_length=walk_length, p=ip, q=iq, epochs=epochs
             )
+            overall_timing[f"{method_display_name.replace(' ', '_')}"] = time.time() - n2v_start_time
             
+            # Test best configuration
             X_train, X_test, y_train, y_test = train_test_split(
-                X_n2v, y_n2v, test_size=0.1, random_state=42
+                X_emb, y_emb, test_size=0.1, random_state=42
             )
+            
+            # Get timing for best configuration
+            best_timing = timing_info[timing_info['Embedding_Size'] == best_size].iloc[0]
             
             for model_name, model in [
                 ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
                 ("RandomForest", RandomForestRegressor(random_state=42)),
             ]:
+                reg_start = time.time()
                 metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
+                reg_time = time.time() - reg_start
+                
                 results.append([
-                    model_name, "Node2Vec",
-                    best_n2v_size, num_walks, walk_length,
-                    ip, iq,
-                    *metrics
+                    model_name, method_display_name, best_size, num_walks, walk_length, ip, iq,
+                    *metrics[:-1], best_timing['Embedding_Time'], reg_time, best_timing['Total_Pipeline_Time']
                 ])
 
     # -----------------------------
     # Save results to CSV
     # -----------------------------
     df_results = pd.DataFrame(results, columns=columns)
+    
+    # Format numeric columns
     numeric_cols = df_results.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
-        df_results[col] = df_results[col].apply(lambda x: int(x) if pd.notna(x) and x == int(x) else round(x, 4) if pd.notna(x) else x)
+        df_results[col] = df_results[col].apply(
+            lambda x: int(x) if pd.notna(x) and x == int(x) else round(x, 4) if pd.notna(x) else x
+        )
     
-    out_file = f"results/{dataset_name}/final_results_pyg.csv"
-    os.makedirs(f"results/{dataset_name}", exist_ok=True)
+    # Save to results-gpu folder
+    out_file = f"results-gpu/{dataset_name}/final_results.csv"
+    os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
     df_results.to_csv(out_file, index=False)
+    
+    # Save timing information
+    overall_timing["total_experiment"] = time.time() - experiment_start_time
+    timing_df = pd.DataFrame(list(overall_timing.items()), columns=['Component', 'Time_Seconds'])
+    timing_df.to_csv(f"results-gpu/{dataset_name}/experiment_timing.csv", index=False)
+    
+    print(f"\n=== Experiment Summary ===")
     print(f"Saved results to {out_file}")
+    print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
+    print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
 
-    return df_results
+    return df_results, timing_df
 
 
 if __name__ == "__main__":
