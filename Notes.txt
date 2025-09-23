@@ -2,3 +2,19 @@
 git revert --no-commit f012b7b..HEAD
 git commit -m "Revert to last kNN"
 git push origin main
+
+
+from graphvite import Graph
+
+def train_node2vec_embeddings_gpu(G, df, vector_size=16, num_walks=40, walk_length=15, p=3, q=1):
+    graph = Graph()
+    for u, v in G.edges():
+        graph.add_edge(u, v)
+    graph.node2vec(dim=vector_size, num_walks=num_walks, walk_length=walk_length, p=p, q=q)
+    graph.train()
+    embeddings = graph.get_node_embeddings()
+    emb_df = pd.DataFrame(embeddings, columns=[f"node2vec_emb_{i}" for i in range(embeddings.shape[1])])
+    df_with_embeddings = pd.concat([df.reset_index(drop=True), emb_df], axis=1)
+    X = df_with_embeddings.drop(['price', 'id'], axis=1)
+    y = df_with_embeddings['price']
+    return X, y, emb_df
