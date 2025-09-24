@@ -1,0 +1,7 @@
+Component,Time_Seconds
+graph_construction,0.7925281524658203
+dfs_balanced,304.5792553424835
+dfs_local,316.0813105106354
+deepwalk,287.03713607788086
+bfs_local,295.0788059234619
+total_experiment,1459.189918756485

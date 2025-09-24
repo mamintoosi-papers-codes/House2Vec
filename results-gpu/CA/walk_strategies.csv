@@ -1,0 +1,5 @@
+strategy,p,q,justification
+dfs_balanced,0.5,0.5,"Balanced DFS-style exploration (p<1, q<1) for discovering structurally similar communities beyond immediate neighborhoods"
+dfs_local,0.5,1.0,"DFS-style with local bias (p<1, q=1) for exploring distant nodes while maintaining some local connectivity"
+deepwalk,1.0,1.0,"Standard DeepWalk (p=1, q=1) as baseline for uniform random walk exploration"
+bfs_local,1.0,0.5,"BFS-style with exploration bias (p=1, q<1) for focusing on local neighborhoods with some diversity"

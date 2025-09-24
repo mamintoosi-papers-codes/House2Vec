@@ -1,0 +1,11 @@
+BaseModel,Method,EmbeddingDim,NumWalks,WalkLength,p,q,R2,MAPE,ACC,RMSE,MSE_log,Embedding_Time,Regression_Time,Total_Time,Graph_Type,Strategy
+GradientBoosting,Raw,,,,,,0.7894,0.206,0.6189,53889.3508,0.0126,0.0,6.2652,6.2652,KNN with Threshold,Baseline
+RandomForest,Raw,,,,,,0.8392,0.1658,0.7348,47090.1269,0.0095,0.0,24.7118,24.7118,KNN with Threshold,Baseline
+GradientBoosting,"Node2Vec (p=0.5, q=0.5)",8.0,50.0,10.0,0.5,0.5,0.7933,0.2042,0.6218,53378.2582,0.0124,56.7341,13.641,56.7416,KNN with Threshold,dfs_balanced
+RandomForest,"Node2Vec (p=0.5, q=0.5)",8.0,50.0,10.0,0.5,0.5,0.8402,0.164,0.7324,46935.5394,0.0092,56.7341,47.0723,56.7416,KNN with Threshold,dfs_balanced
+GradientBoosting,"Node2Vec (p=0.5, q=1.0)",8.0,50.0,10.0,0.5,1.0,0.7921,0.2049,0.614,53533.9153,0.0124,59.5426,13.0634,59.5501,KNN with Threshold,dfs_local
+RandomForest,"Node2Vec (p=0.5, q=1.0)",8.0,50.0,10.0,0.5,1.0,0.8393,0.1654,0.7392,47069.3185,0.0094,59.5426,47.9407,59.5501,KNN with Threshold,dfs_local
+GradientBoosting,DeepWalk,4.0,50.0,10.0,1.0,1.0,0.7889,0.2041,0.6228,53945.1947,0.0126,54.1059,9.5459,54.1111,KNN with Threshold,deepwalk
+RandomForest,DeepWalk,4.0,50.0,10.0,1.0,1.0,0.8387,0.1652,0.728,47161.4193,0.0095,54.1059,34.8246,54.1111,KNN with Threshold,deepwalk
+GradientBoosting,"Node2Vec (p=1.0, q=0.5)",8.0,50.0,10.0,1.0,0.5,0.7951,0.2039,0.6213,53145.8389,0.0125,54.4857,12.8624,54.4934,KNN with Threshold,bfs_local
+RandomForest,"Node2Vec (p=1.0, q=0.5)",8.0,50.0,10.0,1.0,0.5,0.8385,0.1664,0.7363,47178.3036,0.0094,54.4857,45.5392,54.4934,KNN with Threshold,bfs_local

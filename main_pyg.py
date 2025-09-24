@@ -21,71 +21,90 @@ from utils_pyg import (
     load_or_run_baseline
 )
 
+def get_unified_walk_strategies():
+    """
+    Return unified walk strategies for both CA and MHD datasets.
+    These parameters are chosen based on theoretical foundations and preliminary results.
+    """
+    strategies = {
+        "dfs_balanced": {
+            "p": 0.5, 
+            "q": 0.5,
+            "justification": "Balanced DFS-style exploration (p<1, q<1) for discovering structurally similar communities beyond immediate neighborhoods"
+        },
+        "dfs_local": {
+            "p": 0.5, 
+            "q": 1.0,
+            "justification": "DFS-style with local bias (p<1, q=1) for exploring distant nodes while maintaining some local connectivity"
+        },
+        "deepwalk": {
+            "p": 1.0, 
+            "q": 1.0,
+            "justification": "Standard DeepWalk (p=1, q=1) as baseline for uniform random walk exploration"
+        },
+        "bfs_local": {
+            "p": 1.0, 
+            "q": 0.5,
+            "justification": "BFS-style with exploration bias (p=1, q<1) for focusing on local neighborhoods with some diversity"
+        }
+    }
+    return strategies
 
 def optimize_walk_parameters(dataset_name):
     """
-    Return optimized walk parameters based on dataset characteristics.
+    Return unified parameters for both datasets.
     """
+    unified_params = {
+        'num_walks': 50,
+        'walk_length': 10,
+        'epochs': 30,
+        'k': 10,
+        'strategies': get_unified_walk_strategies()
+    }
+    
+    # فقط threshold بر اساس dataset متفاوت باشد
     if dataset_name == "CA":
-        return {
-            'num_walks': 50,  # Increased for larger dataset
-            'walk_length': 10,  # Increased for better exploration
-            'p': 0.5,  # Decreased for more exploration
-            'q': 2.0,  # Increased to focus on local neighbors
-            'epochs': 30,
-            'k': 10,  # Increased k for better connectivity
-            'threshold': 4000  # 4km threshold for CA
-        }
-    elif dataset_name == "MHD":
-        return {
-            'num_walks': 50,
-            'walk_length': 10,
-            'p': 0.5,  # Decreased for more exploration
-            'q': 2.0,  # Increased to focus on local neighbors
-            'epochs': 30,
-            'k': 10,  # Moderate k for MHD
-            'threshold': 100  # 40m threshold for MHD
-        }
+        unified_params['threshold'] = 4000
+    else:  # MHD
+        unified_params['threshold'] = 40
+        
+    return unified_params
 
 
-def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16], 
-                       graph_method="hybrid",  # Options: "knn", "hybrid", "threshold"
-                       quiet=False):
-    """Run complete experiments with timing tracking and optimized parameters."""
+def run_experiments_pyg(dataset_name, embedding_sizes=[2, 4, 8], 
+                       graph_method="threshold", quiet=False):
+    """Run experiments with unified parameters for both datasets."""
     
     experiment_start_time = time.time()
     
-    # Get optimized parameters based on dataset
+    # Get unified parameters
     optimized_params = optimize_walk_parameters(dataset_name)
+    strategies = optimized_params['strategies']
     
-    # -----------------------------
-    # Load dataset & build PyG graph
-    # -----------------------------
+    # Load dataset
     if not quiet:
         print(f"Loading dataset: {dataset_name}")
     df, numeric_features, binary_features = load_dataset(dataset_name)
     
+    # Graph construction
     graph_start_time = time.time()
     
-    # Choose graph construction method
-    if graph_method == "hybrid":
+    if graph_method == "threshold":
+        pyg_data = create_pyg_graph_from_dataframe(
+            df, numeric_features, binary_features,
+            k=optimized_params['k'],
+            threshold_filter=optimized_params['threshold']
+        )
+        graph_type = "KNN with Threshold"
+    elif graph_method == "hybrid":
         pyg_data = create_hybrid_graph(
             df, numeric_features, binary_features,
             k=optimized_params['k'], 
             threshold=optimized_params['threshold'],
             dataset_name=dataset_name
         )
-        graph_type = "Hybrid (KNN + Threshold)"
-    elif graph_method == "threshold":
-        # Use KNN with threshold filtering
-        threshold = optimized_params['threshold'] if dataset_name == "CA" else 40
-        pyg_data = create_pyg_graph_from_dataframe(
-            df, numeric_features, binary_features,
-            k=optimized_params['k'],
-            threshold_filter=threshold
-        )
-        graph_type = "KNN with Threshold"
-    else:  # "knn" - default
+        graph_type = "Hybrid"
+    else:  # "knn"
         pyg_data = create_pyg_graph_from_dataframe(
             df, numeric_features, binary_features,
             k=optimized_params['k']
@@ -96,92 +115,79 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16],
     if not quiet:
         print(f"{graph_type} graph construction completed in {graph_time:.2f} seconds")
         print(f"PyG Graph: {pyg_data.num_nodes} nodes, {pyg_data.edge_index.shape[1]} edges")
+        print(f"Testing {len(strategies)} unified walk strategies")
 
-    # Results columns with timing information
+    # Results columns
     columns = [
         "BaseModel", "Method", "EmbeddingDim", "NumWalks", "WalkLength", "p", "q",
         "R2", "MAPE", "ACC", "RMSE", "MSE_log", 
-        "Embedding_Time", "Regression_Time", "Total_Time", "Graph_Type"
+        "Embedding_Time", "Regression_Time", "Total_Time", "Graph_Type", "Strategy"
     ]
     results = []
     overall_timing = {"graph_construction": graph_time}
 
-    # -----------------------------
-    # Baseline (raw features only) - with caching
-    # -----------------------------
+    # Baseline models
     if not quiet:
         print("\n=== Running Baseline Models ===")
     
-    # Use cached baseline results
     baseline_results = load_or_run_baseline(dataset_name, df, quiet=quiet)
-    # Add graph type to baseline results
     for result in baseline_results:
-        result.append(graph_type)
+        result.extend([graph_type, "Baseline"])
     results.extend(baseline_results)
 
-    # -----------------------------
-    # Node2Vec grid search (includes DeepWalk when p=q=1)
-    # -----------------------------
+    # Test unified walk strategies
     if not quiet:
-        print("\n=== Running Node2Vec Grid Search (includes DeepWalk) ===")
+        print("\n=== Testing Unified Walk Strategies ===")
     
-    # Test optimized parameter combinations
-    p_values = [optimized_params['p']]
-    q_values = [optimized_params['q']]
-    
-    # Also include DeepWalk (p=q=1) for comparison
-    if optimized_params['p'] != 1.0 or optimized_params['q'] != 1.0:
-        p_values.append(1.0)
-        q_values.append(1.0)
-    
-    for ip in p_values:
-        for iq in q_values:
-            # Determine method name based on parameters
-            if ip == 1.0 and iq == 1.0:
-                method_display_name = "DeepWalk"
-            else:
-                method_display_name = f"Node2Vec (p={ip}, q={iq})"
+    for strategy_name, strategy_config in strategies.items():
+        ip = strategy_config["p"]
+        iq = strategy_config["q"]
+        justification = strategy_config["justification"]
+        
+        if ip == 1.0 and iq == 1.0:
+            method_display_name = "DeepWalk"
+        else:
+            method_display_name = f"Node2Vec (p={ip}, q={iq})"
+        
+        if not quiet:
+            print(f"\n--- Strategy: {strategy_name} ---")
+            print(f"Parameters: p={ip}, q={iq}")
+            print(f"Testing {method_display_name} ---")
+        
+        n2v_start_time = time.time()
+        best_size, X_emb, y_emb, emb_results, timing_info = grid_search_embedding_size_pyg(
+            pyg_data, df, embedding_sizes, method="node2vec", dataset_name=dataset_name,
+            num_walks=optimized_params['num_walks'], 
+            walk_length=optimized_params['walk_length'], 
+            p=ip, q=iq, epochs=optimized_params['epochs'],
+            quiet=quiet
+        )
+        overall_timing[f"{strategy_name}"] = time.time() - n2v_start_time
+        
+        # Test best configuration
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_emb, y_emb, test_size=0.1, random_state=42
+        )
+        
+        best_timing = timing_info[timing_info['Embedding_Size'] == best_size].iloc[0]
+        
+        for model_name, model in [
+            ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
+            ("RandomForest", RandomForestRegressor(random_state=42)),
+        ]:
+            reg_start = time.time()
+            metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
+            reg_time = time.time() - reg_start
             
-            if not quiet:
-                print(f"\n--- Testing {method_display_name} ---")
-            
-            n2v_start_time = time.time()
-            best_size, X_emb, y_emb, emb_results, timing_info = grid_search_embedding_size_pyg(
-                pyg_data, df, embedding_sizes, method="node2vec", dataset_name=dataset_name,
-                num_walks=optimized_params['num_walks'], 
-                walk_length=optimized_params['walk_length'], 
-                p=ip, q=iq, epochs=optimized_params['epochs'],
-                quiet=quiet
-            )
-            overall_timing[f"{method_display_name.replace(' ', '_')}"] = time.time() - n2v_start_time
-            
-            # Test best configuration
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_emb, y_emb, test_size=0.1, random_state=42
-            )
-            
-            # Get timing for best configuration
-            best_timing = timing_info[timing_info['Embedding_Size'] == best_size].iloc[0]
-            
-            for model_name, model in [
-                ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-                ("RandomForest", RandomForestRegressor(random_state=42)),
-            ]:
-                reg_start = time.time()
-                metrics = fit_and_evaluate(model, X_train, y_train, X_test, y_test, verbose=False)
-                reg_time = time.time() - reg_start
-                
-                results.append([
-                    model_name, method_display_name, best_size, 
-                    optimized_params['num_walks'], optimized_params['walk_length'], 
-                    ip, iq,
-                    *metrics[:-1], best_timing['Embedding_Time'], reg_time, 
-                    best_timing['Total_Pipeline_Time'], graph_type
-                ])
+            results.append([
+                model_name, method_display_name, best_size, 
+                optimized_params['num_walks'], optimized_params['walk_length'], 
+                ip, iq,
+                *metrics[:-1], best_timing['Embedding_Time'], reg_time, 
+                best_timing['Total_Pipeline_Time'], graph_type, strategy_name
+            ])
 
-    # -----------------------------
-    # Save results to CSV
-    # -----------------------------
+    # Save results
     df_results = pd.DataFrame(results, columns=columns)
     
     # Format numeric columns
@@ -191,23 +197,27 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16],
             lambda x: int(x) if pd.notna(x) and x == int(x) else round(x, 4) if pd.notna(x) else x
         )
     
-    # Save to results-gpu folder
     out_file = f"results-gpu/{dataset_name}/final_results.csv"
     os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
     df_results.to_csv(out_file, index=False)
     
-    # Save timing information
+    # Save strategy information
+    strategy_df = pd.DataFrame([
+        {**{"strategy": k}, **v} for k, v in strategies.items()
+    ])
+    strategy_df.to_csv(f"results-gpu/{dataset_name}/walk_strategies.csv", index=False)
+    
+    # Timing information
     overall_timing["total_experiment"] = time.time() - experiment_start_time
     timing_df = pd.DataFrame(list(overall_timing.items()), columns=['Component', 'Time_Seconds'])
     timing_df.to_csv(f"results-gpu/{dataset_name}/experiment_timing.csv", index=False)
     
     # if not quiet:
     print(f"\n=== Experiment Summary ===")
-    print(f"Graph type: {graph_type}")
-    print(f"Optimized parameters: {optimized_params}")
+    print(f"Dataset: {dataset_name}")
+    print(f"Graph type: {graph_type}") 
+    print(f"Unified parameters applied to both datasets")
     print(f"Saved results to {out_file}")
-    print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
-    print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
 
     compare_models(dataset_name, 'R2', quiet=quiet)
     compare_models(dataset_name, 'RMSE', quiet=quiet)
