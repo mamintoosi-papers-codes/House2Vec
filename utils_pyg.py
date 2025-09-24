@@ -124,6 +124,9 @@ def load_dataset(dataset_name: str):
         df = df.dropna().reset_index(drop=True)
         df['id'] = df.index
 
+        # Convert price from Rials to Million Rials
+        df['price'] = df['price'] / 1000000  # Convert to million rials
+        
         numeric_features = [
             'area_sq_m', 'age_years',
             'floor_number', 'number_of_bedrooms'
@@ -138,10 +141,14 @@ def load_dataset(dataset_name: str):
             (df['latitude'] - centroid_lat)**2 + 
             (df['longitude'] - centroid_lon)**2
         )
-        df['price_per_sqm'] = df['price'] / (df['area_sq_m'] + 1)
+        df['price_per_sqm'] = df['price'] / (df['area_sq_m'] + 1)  # Now in million rials per sqm
         df['age_sq'] = df['age_years'] ** 2
         
         numeric_features.extend(['distance_from_center', 'price_per_sqm', 'age_sq'])
+        
+        # print(f"MHD Dataset: Price converted to million rials")
+        # print(f"Price range: {df['price'].min():.1f} to {df['price'].max():.1f} million rials")
+        # print(f"Mean price: {df['price'].mean():.1f} million rials")
         
         return df, numeric_features, binary_features
 
@@ -510,7 +517,7 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2v
             y_tr, y_val = y_train.iloc[tr_idx], y_train.iloc[val_idx]
 
             # Use LinearRegression instead of RandomForest
-            model = LinearRegression()
+            model = GradientBoostingRegressor(random_state=random_state)            
             
             if score_name == 'rmse':
                 _, _, _, score, _, reg_time = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)

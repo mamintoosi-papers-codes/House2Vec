@@ -1,7 +1,11 @@
-BaseModel,Method,EmbeddingDim,NumWalks,WalkLength,p,q,R2,MAPE,ACC,RMSE,MSE_log,Embedding_Time,Regression_Time,Total_Time
-GradientBoosting,Raw,,,,,,0.7919,0.5099,0.65,2446432158.8388,0.0283,0.0,1.1324,1.1324
-RandomForest,Raw,,,,,,0.8083,0.5409,0.735,2348019446.8982,0.0265,0.0,5.4633,5.4633
-GradientBoosting,DeepWalk,2.0,5.0,15.0,1.0,1.0,0.7898,0.5077,0.648,2458633850.9818,0.0282,17.901,2.0247,17.9045
-RandomForest,DeepWalk,2.0,5.0,15.0,1.0,1.0,0.8024,0.5577,0.724,2384032075.4878,0.0269,17.901,8.0172,17.9045
-GradientBoosting,"Node2Vec (p=2, q=1)",5.0,5.0,15.0,2.0,1.0,0.7893,0.5219,0.661,2461572577.9904,0.0283,17.3831,3.5622,17.3831
-RandomForest,"Node2Vec (p=2, q=1)",5.0,5.0,15.0,2.0,1.0,0.7908,0.5614,0.713,2452988419.9161,0.0275,17.3831,11.6924,17.3831
+BaseModel,Method,EmbeddingDim,NumWalks,WalkLength,p,q,R2,MAPE,ACC,RMSE,MSE_log,Embedding_Time,Regression_Time,Total_Time,Graph_Type
+GradientBoosting,Raw,,,,,,0.9937,0.0716,0.974,426.6804,0.004,0.0,1.6398,1.6398,KNN with Threshold
+RandomForest,Raw,,,,,,0.9932,0.0218,0.991,442.5751,0.0016,0.0,6.2344,6.2344,KNN with Threshold
+GradientBoosting,"Node2Vec (p=0.5, q=2.0)",2.0,50.0,10.0,0.5,2.0,0.9934,0.0633,0.981,435.6726,0.0033,48.182,2.5145,48.1949,KNN with Threshold
+RandomForest,"Node2Vec (p=0.5, q=2.0)",2.0,50.0,10.0,0.5,2.0,0.9929,0.0216,0.992,452.3201,0.0015,48.182,8.2163,48.1949,KNN with Threshold
+GradientBoosting,"Node2Vec (p=0.5, q=1.0)",4.0,50.0,10.0,0.5,1.0,0.9942,0.0703,0.983,407.9357,0.0041,44.8512,3.3043,44.8597,KNN with Threshold
+RandomForest,"Node2Vec (p=0.5, q=1.0)",4.0,50.0,10.0,0.5,1.0,0.9926,0.0235,0.991,462.3259,0.0017,44.8512,10.0173,44.8597,KNN with Threshold
+GradientBoosting,"Node2Vec (p=1.0, q=2.0)",4.0,50.0,10.0,1.0,2.0,0.9937,0.0737,0.978,426.1546,0.0043,41.0287,3.3058,41.0379,KNN with Threshold
+RandomForest,"Node2Vec (p=1.0, q=2.0)",4.0,50.0,10.0,1.0,2.0,0.9921,0.0246,0.992,476.2909,0.0018,41.0287,10.0484,41.0379,KNN with Threshold
+GradientBoosting,DeepWalk,2.0,50.0,10.0,1.0,1.0,0.9933,0.0656,0.985,439.0677,0.0036,39.1674,2.5431,39.1754,KNN with Threshold
+RandomForest,DeepWalk,2.0,50.0,10.0,1.0,1.0,0.991,0.0231,0.99,509.6565,0.0017,39.1674,8.2443,39.1754,KNN with Threshold

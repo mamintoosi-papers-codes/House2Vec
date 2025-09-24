@@ -28,27 +28,27 @@ def optimize_walk_parameters(dataset_name):
     """
     if dataset_name == "CA":
         return {
-            'num_walks': 100,  # Increased for larger dataset
-            'walk_length': 30,  # Increased for better exploration
+            'num_walks': 50,  # Increased for larger dataset
+            'walk_length': 10,  # Increased for better exploration
             'p': 0.5,  # Decreased for more exploration
             'q': 2.0,  # Increased to focus on local neighbors
-            'epochs': 50,
-            'k': 15,  # Increased k for better connectivity
+            'epochs': 30,
+            'k': 10,  # Increased k for better connectivity
             'threshold': 4000  # 4km threshold for CA
         }
     elif dataset_name == "MHD":
         return {
-            'num_walks': 60,
-            'walk_length': 20,
-            'p': 1.0,  # DeepWalk-style for smaller dataset
-            'q': 1.0,
+            'num_walks': 50,
+            'walk_length': 10,
+            'p': 0.5,  # Decreased for more exploration
+            'q': 2.0,  # Increased to focus on local neighbors
             'epochs': 40,
-            'k': 12,  # Moderate k for MHD
+            'k': 10,  # Moderate k for MHD
             'threshold': 40  # 40m threshold for MHD
         }
 
 
-def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], 
+def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16], 
                        graph_method="hybrid",  # Options: "knn", "hybrid", "threshold"
                        quiet=False):
     """Run complete experiments with timing tracking and optimized parameters."""
@@ -201,17 +201,17 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     timing_df = pd.DataFrame(list(overall_timing.items()), columns=['Component', 'Time_Seconds'])
     timing_df.to_csv(f"results-gpu/{dataset_name}/experiment_timing.csv", index=False)
     
-    if not quiet:
-        print(f"\n=== Experiment Summary ===")
-        print(f"Graph type: {graph_type}")
-        print(f"Optimized parameters: {optimized_params}")
-        print(f"Saved results to {out_file}")
-        print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
-        print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
+    # if not quiet:
+    print(f"\n=== Experiment Summary ===")
+    print(f"Graph type: {graph_type}")
+    print(f"Optimized parameters: {optimized_params}")
+    print(f"Saved results to {out_file}")
+    print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
+    print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
 
-        compare_models(dataset_name, 'R2', quiet=quiet)
-        compare_models(dataset_name, 'RMSE', quiet=quiet)
-        compare_models(dataset_name, 'MSE_log', quiet=quiet)
+    compare_models(dataset_name, 'R2', quiet=quiet)
+    compare_models(dataset_name, 'RMSE', quiet=quiet)
+    compare_models(dataset_name, 'MSE_log', quiet=quiet)
 
     return df_results, timing_df
 
