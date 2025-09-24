@@ -42,9 +42,9 @@ def optimize_walk_parameters(dataset_name):
             'walk_length': 10,
             'p': 0.5,  # Decreased for more exploration
             'q': 2.0,  # Increased to focus on local neighbors
-            'epochs': 40,
+            'epochs': 30,
             'k': 10,  # Moderate k for MHD
-            'threshold': 40  # 40m threshold for MHD
+            'threshold': 100  # 40m threshold for MHD
         }
 
 
