@@ -132,15 +132,15 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     timing_df = pd.DataFrame(list(overall_timing.items()), columns=['Component', 'Time_Seconds'])
     timing_df.to_csv(f"results-gpu/{dataset_name}/experiment_timing.csv", index=False)
     
-    if not quiet:
-        print(f"\n=== Experiment Summary ===")
-        print(f"Saved results to {out_file}")
-        print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
-        print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
+    # if not quiet:
+    print(f"\n=== Experiment Summary ===")
+    print(f"Saved results to {out_file}")
+    print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
+    print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
 
-        compare_models(dataset_name, 'R2', quiet=quiet)
-        compare_models(dataset_name, 'RMSE', quiet=quiet)
-        compare_models(dataset_name, 'MSE_log', quiet=quiet)
+    compare_models(dataset_name, 'R2', quiet=quiet)
+    compare_models(dataset_name, 'RMSE', quiet=quiet)
+    compare_models(dataset_name, 'MSE_log', quiet=quiet)
 
     return df_results, timing_df
 

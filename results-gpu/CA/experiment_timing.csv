@@ -1,5 +1,5 @@
 Component,Time_Seconds
-graph_construction,0.6594605445861816
-DeepWalk,264.9485764503479
-"Node2Vec_(p=2,_q=1)",266.3797047138214
-total_experiment,607.5451471805573
+graph_construction,0.8033483028411865
+DeepWalk,55.495773792266846
+"Node2Vec_(p=2,_q=1)",56.95012283325195
+total_experiment,190.67605590820312

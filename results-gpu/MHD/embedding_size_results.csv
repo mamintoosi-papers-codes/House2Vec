@@ -1,0 +1,5 @@
+Method,Embedding_Size,Score_Type,Score
+DeepWalk,2,r2,-84.51547907451918
+DeepWalk,5,r2,-84.58886461062252
+"Node2Vec (p=2, q=1)",2,r2,-84.5563979393617
+"Node2Vec (p=2, q=1)",5,r2,-83.40832877810278
