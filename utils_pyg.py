@@ -81,10 +81,10 @@ def load_or_run_baseline(dataset_name, df, quiet=False):
     return baseline_results
 
 # -----------------------------
-# Dataset loader
+# Enhanced dataset loader with spatial features
 # -----------------------------
 def load_dataset(dataset_name: str):
-    """Load dataset by name (CA or MHD) and return df, numeric_features, threshold."""
+    """Load dataset by name (CA or MHD) and return df, numeric_features, binary_features."""
     if dataset_name == "CA":
         df = pd.read_csv("data/California-housing.csv")
         df = pd.get_dummies(df, columns=['ocean_proximity'], drop_first=True)
@@ -98,14 +98,27 @@ def load_dataset(dataset_name: str):
         ]
         binary_features = ['ocean_proximity_INLAND', 'ocean_proximity_ISLAND',
        'ocean_proximity_NEAR BAY', 'ocean_proximity_NEAR OCEAN']
+        
+        # Add spatial features
+        centroid_lat = df['latitude'].mean()
+        centroid_lon = df['longitude'].mean()
+        df['distance_from_center'] = np.sqrt(
+            (df['latitude'] - centroid_lat)**2 + 
+            (df['longitude'] - centroid_lon)**2
+        )
+        df['income_per_room'] = df['median_income'] / (df['total_rooms'] + 1)
+        df['rooms_per_household'] = df['total_rooms'] / (df['households'] + 1)
+        
+        numeric_features.extend(['distance_from_center', 'income_per_room', 'rooms_per_household'])
+        
         return df, numeric_features, binary_features
 
     elif dataset_name == "MHD":
-        data= pd.read_excel('data/MHD-housing.xlsx')
+        data = pd.read_excel('data/MHD-housing.xlsx')
 
         filtered_data = data.copy()
         np.random.seed(42)
-        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=10000, replace=False,)
+        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=10000, replace=False)
         df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
 
         df = df.dropna().reset_index(drop=True)
@@ -116,27 +129,41 @@ def load_dataset(dataset_name: str):
             'floor_number', 'number_of_bedrooms'
         ]
         binary_features = ['elevator', 'parking', 'storage', 'balcony', 'parquet',   
-                    'ceramic_flooring', 'stone_façade', 'garden', 'renovated'] 
+                    'ceramic_flooring', 'stone_façade', 'garden', 'renovated']
+        
+        # Add spatial features
+        centroid_lat = df['latitude'].mean()
+        centroid_lon = df['longitude'].mean()
+        df['distance_from_center'] = np.sqrt(
+            (df['latitude'] - centroid_lat)**2 + 
+            (df['longitude'] - centroid_lon)**2
+        )
+        df['price_per_sqm'] = df['price'] / (df['area_sq_m'] + 1)
+        df['age_sq'] = df['age_years'] ** 2
+        
+        numeric_features.extend(['distance_from_center', 'price_per_sqm', 'age_sq'])
+        
         return df, numeric_features, binary_features
 
     else:
         raise ValueError("Unknown dataset name. Use 'CA' or 'MHD'.")
 
-
 # -----------------------------
-# Graph construction for PyG
+# Optimized graph construction for PyG
 # -----------------------------
 def create_pyg_graph_from_dataframe(
     df,
     numeric_features,
     binary_features,
-    k=10,
+    k=15,  # Increased k for better connectivity
     scale_numeric=True,
-    metric="euclidean"
+    metric="euclidean",
+    weight_edges=True,
+    threshold_filter=None
 ):
     """
-    KNN-based graph construction for PyTorch Geometric.
-    Returns PyG Data object.
+    Optimized KNN-based graph construction for PyTorch Geometric.
+    Returns PyG Data object with optional edge weights and threshold filtering.
     """
     # Use only Geo features for graph structure
     X_geo = df[["latitude", "longitude"]].to_numpy()
@@ -148,14 +175,32 @@ def create_pyg_graph_from_dataframe(
 
     # Create edge_index for PyG
     edges = []
+    edge_weights = []
+    
     for i in range(len(df)):
         for j_idx, j in enumerate(indices[i][1:]):  # skip itself
+            dist = distances[i][j_idx+1]
+            
+            # Apply threshold filter if specified
+            if threshold_filter and dist > threshold_filter:
+                continue
+                
             # enforce type constraint for MHD dataset
             if "type" in df.columns and df.loc[i, "type"] != df.loc[j, "type"]:
                 continue  
+            
             edges.append([i, j])
+            if weight_edges:
+                # Inverse distance weighting - closer points have higher weight
+                edge_weights.append(1.0 / (dist + 1e-8))
     
     edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+    
+    # Add edge weights if enabled
+    if weight_edges and edge_weights:
+        edge_attr = torch.tensor(edge_weights, dtype=torch.float).unsqueeze(1)
+    else:
+        edge_attr = None
     
     # Node features: numeric + binary features
     if scale_numeric and numeric_features:
@@ -175,11 +220,78 @@ def create_pyg_graph_from_dataframe(
     y = torch.tensor(df['price'].values, dtype=torch.float)
     
     # Create PyG Data object
-    pyg_data = Data(x=x, edge_index=edge_index, y=y)
+    pyg_data = Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
     pyg_data.num_nodes = len(df)
     
     return pyg_data
 
+# -----------------------------
+# Hybrid graph construction (KNN + Threshold)
+# -----------------------------
+def create_hybrid_graph(
+    df,
+    numeric_features,
+    binary_features,
+    k=10,
+    threshold=1000,
+    scale_numeric=True,
+    dataset_name="CA"
+):
+    """
+    Hybrid graph construction: KNN + Threshold-based connections.
+    """
+    X_geo = df[["latitude", "longitude"]].to_numpy()
+    
+    # 1. KNN for local connections
+    nn = NearestNeighbors(n_neighbors=k+1, metric="euclidean")
+    nn.fit(X_geo)
+    knn_distances, knn_indices = nn.kneighbors(X_geo)
+    
+    # 2. Threshold-based for regional connections
+    threshold_nn = NearestNeighbors(radius=threshold, metric="euclidean")
+    threshold_nn.fit(X_geo)
+    threshold_distances, threshold_indices = threshold_nn.radius_neighbors(X_geo)
+    
+    edges = set()  # Use set to avoid duplicates
+    
+    # Add KNN connections
+    for i in range(len(df)):
+        for j_idx, j in enumerate(knn_indices[i][1:]):  # skip itself
+            if "type" in df.columns and df.loc[i, "type"] != df.loc[j, "type"]:
+                continue
+            edges.add((min(i, j), max(i, j)))
+    
+    # Add threshold-based connections
+    for i in range(len(df)):
+        for j in threshold_indices[i]:
+            if i != j:  # skip itself
+                if "type" in df.columns and df.loc[i, "type"] != df.loc[j, "type"]:
+                    continue
+                edges.add((min(i, j), max(i, j)))
+    
+    edges = list(edges)
+    edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+    
+    # Node features
+    if scale_numeric and numeric_features:
+        scaler = StandardScaler()
+        numeric_scaled = scaler.fit_transform(df[numeric_features])
+    else:
+        numeric_scaled = df[numeric_features].values
+    
+    if binary_features:
+        binary_data = df[binary_features].values
+        node_features = np.concatenate([numeric_scaled, binary_data], axis=1)
+    else:
+        node_features = numeric_scaled
+    
+    x = torch.tensor(node_features, dtype=torch.float)
+    y = torch.tensor(df['price'].values, dtype=torch.float)
+    
+    pyg_data = Data(x=x, edge_index=edge_index, y=y)
+    pyg_data.num_nodes = len(df)
+    
+    return pyg_data
 
 # -----------------------------
 # Unified graph embeddings training function
@@ -263,7 +375,6 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
     
     return embeddings, training_time, method_name
 
-
 # -----------------------------
 # Unified pipeline for graph embeddings
 # -----------------------------
@@ -313,7 +424,6 @@ def train_graph_embeddings_pipeline_pyg(pyg_data, df, vector_size=16, num_walks=
         print(f"Full pipeline completed in {total_time:.2f} seconds")
     
     return X_combined, y, emb_df, emb_training_time, total_time
-
 
 # -----------------------------
 # Regression & evaluation with timing
@@ -370,10 +480,8 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2v
     # Determine method name for display
     if p == 1.0 and q == 1.0:
         method_name = "DeepWalk"
-        file_suffix = "DeepWalk"
     else:
         method_name = f"Node2Vec (p={p}, q={q})"
-        file_suffix = f"Node2Vec_p={p}_q={q}"
 
     # Progress bar for grid search (only if not quiet)
     if not quiet:
@@ -557,9 +665,7 @@ def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
 
-    # -------------------------------
     # Single plot: Selected metric comparison
-    # -------------------------------
     all_metric_bars = []
     bar_positions = []
     
@@ -640,4 +746,3 @@ def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv
                         print(f"  {method_cat}: {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
 
     return best_df
-
