@@ -116,12 +116,16 @@ def load_dataset(dataset_name: str):
     elif dataset_name == "MHD":
         data = pd.read_excel('data/MHD-housing.xlsx')
 
-        filtered_data = data.copy()
-        np.random.seed(42)
-        shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=20000, replace=False)
-        df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
+        # Whole dataset
+        df = data.dropna().reset_index(drop=True)
 
-        df = df.dropna().reset_index(drop=True)
+        # # random subset
+        # filtered_data = data.copy()
+        # np.random.seed(42)
+        # shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=20000, replace=False)
+        # df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
+        # df = df.dropna().reset_index(drop=True)
+
         df['id'] = df.index
 
         # Convert price from Rials to Million Rials
@@ -165,7 +169,7 @@ def create_pyg_graph_from_dataframe(
     k=15,  # Increased k for better connectivity
     scale_numeric=True,
     metric="euclidean",
-    weight_edges=True,
+    weight_edges=False,
     threshold_filter=None
 ):
     """
@@ -338,7 +342,7 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
         sparse=True
     ).to(device)
     
-    loader = model.loader(batch_size=512, shuffle=True, num_workers=0)
+    loader = model.loader(batch_size=4096, shuffle=True, num_workers=0)
     optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.01)
     
     # Training loop with optional tqdm
