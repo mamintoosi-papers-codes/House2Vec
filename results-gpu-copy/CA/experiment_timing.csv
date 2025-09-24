@@ -1,7 +1,0 @@
-Component,Time_Seconds
-graph_construction,0.8405168056488037
-"Node2Vec_(p=0.5,_q=2.0)",208.28670692443848
-"Node2Vec_(p=0.5,_q=1.0)",198.63700437545776
-"Node2Vec_(p=1.0,_q=2.0)",188.17162203788757
-DeepWalk,163.87367868423462
-total_experiment,999.9785838127136

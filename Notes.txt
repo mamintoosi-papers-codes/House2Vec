@@ -7,8 +7,15 @@ batch-size time
 CA
     128, 24
     512, 16:49
+20433 nodes, 204330 edges
+            'num_walks': 80,
+        'walk_length': 15,
+        'epochs': 40,
+        'k': 10,
+    512, 26:42        
 
 MHD
     128, 10 
     512, 7:20
+    512, 11:34, PyG Graph: 10000 nodes, 85959 edges
 

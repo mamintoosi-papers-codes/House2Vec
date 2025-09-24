@@ -55,9 +55,9 @@ def optimize_walk_parameters(dataset_name):
     Return unified parameters for both datasets.
     """
     unified_params = {
-        'num_walks': 50,
-        'walk_length': 10,
-        'epochs': 30,
+        'num_walks': 80,
+        'walk_length': 15,
+        'epochs': 40,
         'k': 10,
         'strategies': get_unified_walk_strategies()
     }
@@ -66,7 +66,7 @@ def optimize_walk_parameters(dataset_name):
     if dataset_name == "CA":
         unified_params['threshold'] = 4000
     else:  # MHD
-        unified_params['threshold'] = 40
+        unified_params['threshold'] = 100
         
     return unified_params
 
