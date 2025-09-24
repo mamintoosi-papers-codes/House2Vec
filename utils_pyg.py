@@ -26,6 +26,60 @@ from sklearn.neighbors import NearestNeighbors
 
 from matplotlib.ticker import FuncFormatter
 import re
+
+# -----------------------------
+# Baseline results cache function
+# -----------------------------
+def load_or_run_baseline(dataset_name, df, quiet=False):
+    """Load baseline results from file or run and save them."""
+    baseline_file = f"results-gpu/{dataset_name}/baseline_results.csv"
+    os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
+    
+    # Load from file if exists
+    if os.path.exists(baseline_file):
+        if not quiet:
+            print("Loading baseline results from file...")
+        baseline_df = pd.read_csv(baseline_file)
+        return baseline_df.values.tolist()
+    
+    # Otherwise run and save
+    if not quiet:
+        print("Running baseline models...")
+    
+    X_base = df.drop(['price', 'id'], axis=1)
+    y = df['price']
+    X_train_base, X_test_base, y_train, y_test = train_test_split(
+        X_base, y, test_size=0.1, random_state=42
+    )
+
+    baseline_results = []
+    for model_name, model in [
+        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
+        ("RandomForest", RandomForestRegressor(random_state=42)),
+    ]:
+        baseline_start = time.time()
+        metrics = fit_and_evaluate(model, X_train_base, y_train, X_test_base, y_test, verbose=False)
+        baseline_time = time.time() - baseline_start
+        
+        baseline_results.append([
+            model_name, "Raw", None, None, None, None, None,
+            *metrics[:-1], 0, metrics[-1], baseline_time
+        ])
+
+    # Save results
+    columns = [
+        "BaseModel", "Method", "EmbeddingDim", "NumWalks", "WalkLength", "p", "q",
+        "R2", "MAPE", "ACC", "RMSE", "MSE_log", 
+        "Embedding_Time", "Regression_Time", "Total_Time"
+    ]
+    baseline_df = pd.DataFrame(baseline_results, columns=columns)
+    baseline_df.to_csv(baseline_file, index=False)
+    
+    if not quiet:
+        print(f"Baseline results saved to {baseline_file}")
+    
+    return baseline_results
+
 # -----------------------------
 # Dataset loader
 # -----------------------------
@@ -44,16 +98,12 @@ def load_dataset(dataset_name: str):
         ]
         binary_features = ['ocean_proximity_INLAND', 'ocean_proximity_ISLAND',
        'ocean_proximity_NEAR BAY', 'ocean_proximity_NEAR OCEAN']
-        # threshold = 4000   # meters
         return df, numeric_features, binary_features
 
     elif dataset_name == "MHD":
         data= pd.read_excel('data/MHD-housing.xlsx')
 
         filtered_data = data.copy()
-        # Filter the data for the specified region
-        # filtered_data = data[(data['longitude'] >= 59.4) & (data['longitude'] <= 59.7) &
-        #                     (data['latitude'] >= 36.2) & (data['latitude'] <= 36.45)]
         np.random.seed(42)
         shuffle_indices = np.random.choice(np.arange(filtered_data.shape[0]), size=10000, replace=False,)
         df = filtered_data.iloc[shuffle_indices].reset_index(drop=True)
@@ -67,7 +117,6 @@ def load_dataset(dataset_name: str):
         ]
         binary_features = ['elevator', 'parking', 'storage', 'balcony', 'parquet',   
                     'ceramic_flooring', 'stone_façade', 'garden', 'renovated'] 
-        # threshold = 40   # meters
         return df, numeric_features, binary_features
 
     else:
@@ -137,7 +186,7 @@ def create_pyg_graph_from_dataframe(
 # -----------------------------
 def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10, 
                               context_size=5, walks_per_node=10, p=1.0, q=1.0, 
-                              epochs=50):
+                              epochs=50, quiet=False):
     """
     Train graph embeddings using PyG's Node2Vec.
     
@@ -152,7 +201,8 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
     else:
         method_name = f"Node2Vec (p={p}, q={q})"
     
-    print(f"Training {method_name} with vector_size={vector_size}")
+    if not quiet:
+        print(f"Training {method_name} with vector_size={vector_size}")
     
     start_time = time.time()
     
@@ -172,7 +222,7 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
     loader = model.loader(batch_size=128, shuffle=True, num_workers=0)
     optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.01)
     
-    # Training loop with tqdm
+    # Training loop with optional tqdm
     def train():
         model.train()
         total_loss = 0
@@ -184,19 +234,23 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
             total_loss += loss.item()
         return total_loss / len(loader)
     
-    # Use tqdm for progress tracking
     losses = []
-    with tqdm(total=epochs, desc=f"{method_name} Training") as pbar:
+    if not quiet:
+        # With progress bar
+        with tqdm(total=epochs, desc=f"{method_name} Training") as pbar:
+            for epoch in range(epochs):
+                loss = train()
+                losses.append(loss)
+                pbar.set_postfix({
+                    'Loss': f'{loss:.4f}',
+                    'Best': f'{min(losses):.4f}' if losses else 'N/A'
+                })
+                pbar.update(1)
+    else:
+        # Without progress bar
         for epoch in range(epochs):
             loss = train()
             losses.append(loss)
-            
-            # Update progress bar
-            pbar.set_postfix({
-                'Loss': f'{loss:.4f}',
-                'Best': f'{min(losses):.4f}' if losses else 'N/A'
-            })
-            pbar.update(1)
     
     # Get embeddings
     model.eval()
@@ -204,7 +258,8 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
         embeddings = model.embedding.weight.cpu().numpy()
     
     training_time = time.time() - start_time
-    print(f"{method_name} training completed in {training_time:.2f} seconds")
+    if not quiet:
+        print(f"{method_name} training completed in {training_time:.2f} seconds")
     
     return embeddings, training_time, method_name
 
@@ -213,7 +268,7 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
 # Unified pipeline for graph embeddings
 # -----------------------------
 def train_graph_embeddings_pipeline_pyg(pyg_data, df, vector_size=16, num_walks=40, 
-                                       walk_length=15, p=1.0, q=1.0, epochs=50):
+                                       walk_length=15, p=1.0, q=1.0, epochs=50, quiet=False):
     """
     Full pipeline for graph embeddings using PyG.
     
@@ -231,7 +286,8 @@ def train_graph_embeddings_pipeline_pyg(pyg_data, df, vector_size=16, num_walks=
         walks_per_node=num_walks,
         p=p,
         q=q,
-        epochs=epochs
+        epochs=epochs,
+        quiet=quiet
     )
     
     # Determine prefix based on method
@@ -253,7 +309,8 @@ def train_graph_embeddings_pipeline_pyg(pyg_data, df, vector_size=16, num_walks=
     y = df['price']
     
     total_time = time.time() - start_time
-    print(f"Full pipeline completed in {total_time:.2f} seconds")
+    if not quiet:
+        print(f"Full pipeline completed in {total_time:.2f} seconds")
     
     return X_combined, y, emb_df, emb_training_time, total_time
 
@@ -298,12 +355,13 @@ def fit_and_evaluate(model, X_train, y_train, X_test, y_test, filename=None, ver
     return r2, mape, acc, rmse, mse_log, training_time
 
 # -----------------------------
-# Grid Search for embedding size with timing
+# Grid Search for embedding size with timing and LinearRegression
 # -----------------------------
 def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2vec",
                                  score_name="r2", random_state=42, dataset_name="CA",
-                                 num_walks=60, walk_length=15, p=1.0, q=1.0, epochs=30):
-    """Perform grid search for embedding size using PyG."""
+                                 num_walks=60, walk_length=15, p=1.0, q=1.0, epochs=30,
+                                 quiet=False):
+    """Perform grid search for embedding size using PyG with LinearRegression."""
     best_score = np.inf if score_name == 'rmse' else -np.inf
     best_params, best_X, best_y = None, None, None
     results = []
@@ -312,20 +370,26 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2v
     # Determine method name for display
     if p == 1.0 and q == 1.0:
         method_name = "DeepWalk"
+        file_suffix = "DeepWalk"
     else:
         method_name = f"Node2Vec (p={p}, q={q})"
+        file_suffix = f"Node2Vec_p={p}_q={q}"
 
-    # Progress bar for grid search
-    pbar_embedding = tqdm(embedding_sizes, desc=f"{method_name} Grid Search")
+    # Progress bar for grid search (only if not quiet)
+    if not quiet:
+        pbar_embedding = tqdm(embedding_sizes, desc=f"{method_name} Grid Search")
+    else:
+        pbar_embedding = embedding_sizes
     
     for vector_size in pbar_embedding:
-        pbar_embedding.set_postfix({'Testing': f'vec_size={vector_size}'})
+        if not quiet:
+            pbar_embedding.set_postfix({'Testing': f'vec_size={vector_size}'})
         
         # Train embeddings with timing
         X, y, _, emb_time, total_time = train_graph_embeddings_pipeline_pyg(
             pyg_data, df, vector_size=vector_size, 
             num_walks=num_walks, walk_length=walk_length, 
-            p=p, q=q, epochs=epochs
+            p=p, q=q, epochs=epochs, quiet=quiet
         )
 
         X_train, _, y_train, _ = train_test_split(X, y, test_size=0.1, random_state=random_state)
@@ -337,7 +401,8 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2v
             X_tr, X_val = X_train.iloc[tr_idx], X_train.iloc[val_idx]
             y_tr, y_val = y_train.iloc[tr_idx], y_train.iloc[val_idx]
 
-            model = RandomForestRegressor(random_state=random_state)
+            # Use LinearRegression instead of RandomForest
+            model = LinearRegression()
             
             if score_name == 'rmse':
                 _, _, _, score, _, reg_time = fit_and_evaluate(model, X_tr, y_tr, X_val, y_val, verbose=False)
@@ -361,32 +426,52 @@ def grid_search_embedding_size_pyg(pyg_data, df, embedding_sizes, method="node2v
         if condition:
             best_score, best_params, best_X, best_y = mean_score, vector_size, X, y
 
-    # Save results to results-gpu folder
+    # Unified saving of all results in single files
     os.makedirs(f"results-gpu/{dataset_name}", exist_ok=True)
     
-    # Save main results
-    results_df = pd.DataFrame(results, columns=['Embedding_Size', score_name])
-    results_df.to_csv(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_embedding_size_results.csv", index=False)
+    # Master file for all embedding size results
+    master_file = f"results-gpu/{dataset_name}/embedding_size_results.csv"
+    
+    # Load existing file if exists and append new results
+    if os.path.exists(master_file):
+        master_df = pd.read_csv(master_file)
+    else:
+        master_df = pd.DataFrame(columns=['Method', 'Embedding_Size', 'Score_Type', 'Score'])
+    
+    # Add new results
+    new_results = pd.DataFrame({
+        'Method': [method_name] * len(results),
+        'Embedding_Size': [r[0] for r in results],
+        'Score_Type': [score_name] * len(results),
+        'Score': [r[1] for r in results]
+    })
+    
+    master_df = pd.concat([master_df, new_results], ignore_index=True)
+    master_df.to_csv(master_file, index=False)
 
     # Save timing results
-    timing_df = pd.DataFrame(timing_results, 
-                           columns=['Embedding_Size', 'Embedding_Time', 'Total_Pipeline_Time', 'Regression_Time'])
-    timing_df.to_csv(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_timing_results.csv", index=False)
+    timing_file = f"results-gpu/{dataset_name}/timing_results.csv"
+    if os.path.exists(timing_file):
+        timing_master_df = pd.read_csv(timing_file)
+    else:
+        timing_master_df = pd.DataFrame(columns=['Method', 'Embedding_Size', 'Embedding_Time', 
+                                               'Total_Pipeline_Time', 'Regression_Time'])
+    
+    new_timing = pd.DataFrame({
+        'Method': [method_name] * len(timing_results),
+        'Embedding_Size': [r[0] for r in timing_results],
+        'Embedding_Time': [r[1] for r in timing_results],
+        'Total_Pipeline_Time': [r[2] for r in timing_results],
+        'Regression_Time': [r[3] for r in timing_results]
+    })
+    
+    timing_master_df = pd.concat([timing_master_df, new_timing], ignore_index=True)
+    timing_master_df.to_csv(timing_file, index=False)
 
-    # Plot results
-    plt.figure(figsize=(10, 6))
-    plt.plot(results_df['Embedding_Size'], results_df[score_name], marker='o')
-    plt.scatter(best_params, best_score, color='red')
-    plt.title(f"{method_name} - Embedding Size vs {score_name.upper()}")
-    plt.xlabel("Embedding Size")
-    plt.ylabel(score_name.upper())
-    plt.grid(True)
-    plt.savefig(f"results-gpu/{dataset_name}/{method_name.replace(' ', '_').replace('(', '').replace(')', '')}_embedding_size_plot.png")
-    plt.close()
+    if not quiet:
+        print(f"\n[{method_name}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
 
-    print(f"\n[{method_name}] Best embedding size: {best_params} with {score_name}: {best_score:.3f}")
-
-    return best_params, best_X, best_y, results_df, timing_df
+    return best_params, best_X, best_y, new_results, new_timing
 
 def graph_report(G):
     """Generate basic graph statistics report."""
@@ -404,13 +489,7 @@ def graph_report(G):
     print(f"Maximum number of neighbors: {max_neighbors}")  
     print(f"Average number of neighbors: {avg_neighbors:.2f}")
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.ticker import FuncFormatter
-import os
-
-def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv"):
+def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv", quiet=False):
     """
     Single plot for selected metric comparison.
     - For each BaseModel and Method category, selects the best configuration based on the specified metric
@@ -542,31 +621,23 @@ def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close()  # Close the plot to prevent display
     
-    print(f"Best configurations comparison plot saved to {out_path}")
-    print(f"Selected best configurations for each method (based on {metric}):")
-    
-    # Print best configurations summary
-    for base_model in best_df["BaseModel"].unique():
-        print(f"\n{base_model}:")
-        for method_cat in ["Raw", "DeepWalk", "Node2Vec"]:
-            subset = best_df[(best_df["BaseModel"] == base_model) & (best_df["Method_Category"] == method_cat)]
-            if not subset.empty:
-                row = subset.iloc[0]
-                if method_cat == "Node2Vec":
-                    p_val = row["p"] if "p" in row and not pd.isna(row["p"]) else "N/A"
-                    q_val = row["q"] if "q" in row and not pd.isna(row["q"]) else "N/A"
-                    print(f"  {method_cat}: p={p_val}, q={q_val}, {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
-                else:
-                    print(f"  {method_cat}: {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
+    if not quiet:
+        print(f"Best configurations comparison plot saved to {out_path}")
+        print(f"Selected best configurations for each method (based on {metric}):")
+        
+        # Print best configurations summary
+        for base_model in best_df["BaseModel"].unique():
+            print(f"\n{base_model}:")
+            for method_cat in ["Raw", "DeepWalk", "Node2Vec"]:
+                subset = best_df[(best_df["BaseModel"] == base_model) & (best_df["Method_Category"] == method_cat)]
+                if not subset.empty:
+                    row = subset.iloc[0]
+                    if method_cat == "Node2Vec":
+                        p_val = row["p"] if "p" in row and not pd.isna(row["p"]) else "N/A"
+                        q_val = row["q"] if "q" in row and not pd.isna(row["q"]) else "N/A"
+                        print(f"  {method_cat}: p={p_val}, q={q_val}, {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
+                    else:
+                        print(f"  {method_cat}: {metric}={row[metric]:.4f}, R²={row['R2']:.4f}")
 
     return best_df
 
-# # Example usage
-# if __name__ == "__main__":
-#     # Example runs (plots will be saved but not displayed)
-#     compare_models("CA", 'RMSE')
-#     compare_models("MHD", 'RMSE')
-#     compare_models("CA", 'MSE_log') 
-#     compare_models("MHD", 'MSE_log')
-#     compare_models("CA", 'R2')
-#     compare_models("MHD", 'R2')

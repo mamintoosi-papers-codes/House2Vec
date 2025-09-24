@@ -16,12 +16,14 @@ from utils_pyg import (
     create_pyg_graph_from_dataframe,
     fit_and_evaluate,
     grid_search_embedding_size_pyg,
-    compare_models
+    compare_models,
+    load_or_run_baseline  # تابع جدید
 )
 
 
 def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64], 
-                       num_walks=80, walk_length=10, p=3, q=1, epochs=30):
+                       num_walks=80, walk_length=10, p=3, q=1, epochs=30,
+                       quiet=False):
     """Run complete experiments with timing tracking."""
     
     experiment_start_time = time.time()
@@ -29,7 +31,8 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     # -----------------------------
     # Load dataset & build PyG graph
     # -----------------------------
-    print(f"Loading dataset: {dataset_name}")
+    if not quiet:
+        print(f"Loading dataset: {dataset_name}")
     df, numeric_features, binary_features = load_dataset(dataset_name)
     
     graph_start_time = time.time()
@@ -37,8 +40,9 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
         df, numeric_features, binary_features
     )
     graph_time = time.time() - graph_start_time
-    print(f"Graph construction completed in {graph_time:.2f} seconds")
-    print(f"PyG Graph: {pyg_data.num_nodes} nodes, {pyg_data.edge_index.shape[1]} edges")
+    if not quiet:
+        print(f"Graph construction completed in {graph_time:.2f} seconds")
+        print(f"PyG Graph: {pyg_data.num_nodes} nodes, {pyg_data.edge_index.shape[1]} edges")
 
     # Results columns with timing information
     columns = [
@@ -50,32 +54,20 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     overall_timing = {"graph_construction": graph_time}
 
     # -----------------------------
-    # Baseline (raw features only)
+    # Baseline (raw features only) - با قابلیت ذخیره/بارگذاری
     # -----------------------------
-    print("\n=== Running Baseline Models ===")
-    X_base = df.drop(['price', 'id'], axis=1)
-    y = df['price']
-    X_train_base, X_test_base, y_train, y_test = train_test_split(
-        X_base, y, test_size=0.1, random_state=42
-    )
-
-    for model_name, model in [
-        ("GradientBoosting", GradientBoostingRegressor(random_state=42)),
-        ("RandomForest", RandomForestRegressor(random_state=42)),
-    ]:
-        baseline_start = time.time()
-        metrics = fit_and_evaluate(model, X_train_base, y_train, X_test_base, y_test, verbose=False)
-        baseline_time = time.time() - baseline_start
-        
-        results.append([
-            model_name, "Raw", None, None, None, None, None,
-            *metrics[:-1], 0, metrics[-1], baseline_time  # No embedding time for baseline
-        ])
+    if not quiet:
+        print("\n=== Running Baseline Models ===")
+    
+    # استفاده از تابع جدید برای baseline
+    baseline_results = load_or_run_baseline(dataset_name, df, quiet=quiet)
+    results.extend(baseline_results)
 
     # -----------------------------
     # Node2Vec grid search (includes DeepWalk when p=q=1)
     # -----------------------------
-    print("\n=== Running Node2Vec Grid Search (includes DeepWalk) ===")
+    if not quiet:
+        print("\n=== Running Node2Vec Grid Search (includes DeepWalk) ===")
     
     # Test all combinations of p and q (p=q=1 represents DeepWalk)
     for ip in range(1, p+1):
@@ -86,12 +78,14 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
             else:
                 method_display_name = f"Node2Vec (p={ip}, q={iq})"
             
-            print(f"\n--- Testing {method_display_name} ---")
+            if not quiet:
+                print(f"\n--- Testing {method_display_name} ---")
             
             n2v_start_time = time.time()
             best_size, X_emb, y_emb, emb_results, timing_info = grid_search_embedding_size_pyg(
                 pyg_data, df, embedding_sizes, method="node2vec", dataset_name=dataset_name,
-                num_walks=num_walks, walk_length=walk_length, p=ip, q=iq, epochs=epochs
+                num_walks=num_walks, walk_length=walk_length, p=ip, q=iq, epochs=epochs,
+                quiet=quiet
             )
             overall_timing[f"{method_display_name.replace(' ', '_')}"] = time.time() - n2v_start_time
             
@@ -138,14 +132,15 @@ def run_experiments_pyg(dataset_name, embedding_sizes=[2, 8, 16, 32, 64],
     timing_df = pd.DataFrame(list(overall_timing.items()), columns=['Component', 'Time_Seconds'])
     timing_df.to_csv(f"results-gpu/{dataset_name}/experiment_timing.csv", index=False)
     
-    print(f"\n=== Experiment Summary ===")
-    print(f"Saved results to {out_file}")
-    print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
-    print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
+    if not quiet:
+        print(f"\n=== Experiment Summary ===")
+        print(f"Saved results to {out_file}")
+        print(f"Total experiment time: {overall_timing['total_experiment']:.2f} seconds")
+        print(f"Timing breakdown saved to results-gpu/{dataset_name}/experiment_timing.csv")
 
-    compare_models(dataset_name, 'R2')
-    compare_models(dataset_name, 'RMSE')
-    compare_models(dataset_name, 'MSE_log')
+        compare_models(dataset_name, 'R2', quiet=quiet)
+        compare_models(dataset_name, 'RMSE', quiet=quiet)
+        compare_models(dataset_name, 'MSE_log', quiet=quiet)
 
     return df_results, timing_df
 
@@ -160,6 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=30, help="Number of training epochs for embeddings")
     parser.add_argument("--embedding_sizes", nargs="+", type=int, default=[8, 16, 32, 64],
                         help="List of embedding sizes to try for grid search")
+    parser.add_argument("--quiet", action="store_true", help="Reduce output verbosity")
     args = parser.parse_args()
 
     run_experiments_pyg(
@@ -169,5 +165,6 @@ if __name__ == "__main__":
         walk_length=args.walk_length, 
         p=args.p, 
         q=args.q,
-        epochs=args.epochs
+        epochs=args.epochs,
+        quiet=args.quiet
     )
