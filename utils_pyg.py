@@ -338,7 +338,7 @@ def train_graph_embeddings_pyg(pyg_data, vector_size=16, walk_length=10,
         sparse=True
     ).to(device)
     
-    loader = model.loader(batch_size=128, shuffle=True, num_workers=0)
+    loader = model.loader(batch_size=512, shuffle=True, num_workers=0)
     optimizer = torch.optim.SparseAdam(model.parameters(), lr=0.01)
     
     # Training loop with optional tqdm
@@ -720,11 +720,12 @@ def compare_models(dataset_name, metric='RMSE', res_file_name="final_results.csv
             positions = x + i * bar_width - bar_width
             for pos, val in zip(positions, vals):
                 if not np.isnan(val):
-                    # Use scientific notation for large/small numbers
-                    if abs(val) >= 1000 or (abs(val) <= 0.01 and val != 0):
-                        ax.text(pos, val * 1.01, f'{val:.2e}', ha='center', va='bottom', fontsize=9)
-                    else:
-                        ax.text(pos, val * 1.01, f'{val:.3f}', ha='center', va='bottom', fontsize=9)
+                    ax.text(pos, val * 1.01, f'{val:.3f}', ha='center', va='bottom', fontsize=9)
+                    # # Use scientific notation for large/small numbers
+                    # if abs(val) >= 1000 or (abs(val) <= 0.01 and val != 0):
+                    #     ax.text(pos, val * 1.01, f'{val:.2e}', ha='center', va='bottom', fontsize=9)
+                    # else:
+                    #     ax.text(pos, val * 1.01, f'{val:.3f}', ha='center', va='bottom', fontsize=9)
 
     plt.tight_layout()
 
