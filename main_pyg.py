@@ -57,8 +57,8 @@ def optimize_walk_parameters(dataset_name):
     unified_params = {
         'num_walks': 80,
         'walk_length': 15,
-        'epochs': 80,
-        'k': 10,
+        'epochs': 50,
+        'k': 15,
         'strategies': get_unified_walk_strategies()
     }
     
